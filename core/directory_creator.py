@@ -52,7 +52,8 @@ class DirectoryCreator:
             self._create_directory_structure(work_dir_path)
 
             # 共通テンプレートファイルをコピー
-            self._copy_common_templates(work_dir_path)
+            self._copy_common_templates(
+                work_dir_path, work_type, system_name, work_date)
 
             # 作業内容に応じたテンプレートファイルをコピー
             self._copy_work_templates(work_dir_path, cloud, work_type)
@@ -88,27 +89,27 @@ class DirectoryCreator:
         (work_dir_path / "証跡").mkdir(exist_ok=True)
         (work_dir_path / "メール").mkdir(exist_ok=True)
 
-    def _copy_common_templates(self, work_dir_path: Path):
+    def _copy_common_templates(self, work_dir_path: Path, work_type: str, system_name: str, work_date: str):
         """共通テンプレートファイルをコピー"""
-        common_templates = {
-            "必須手順書": "手順書/必須手順書.xlsx",
-            "作業手順書": "手順書/作業手順書.xlsx",
-            "受付チェックシート": "メール/受付チェックシート.xlsx"
-        }
+        # 必須手順書は手順書ディレクトリにコピー
+        source_path = self.config_manager.get_common_template("必須手順書")
+        if source_path and Path(source_path).exists():
+            source_file_name = Path(source_path).name
+            target_file = work_dir_path / "手順書" / source_file_name
+            shutil.copy2(source_path, target_file)
 
-        for template_name, target_path in common_templates.items():
-            source_path = self.config_manager.get_common_template(
-                template_name)
-            if source_path and Path(source_path).exists():
-                target_file = work_dir_path / target_path
-                shutil.copy2(source_path, target_file)
+        # 準備調整チェックシートは作業用ディレクトリのルートにコピー
+        source_path = self.config_manager.get_common_template("準備調整チェックシート")
+        if source_path and Path(source_path).exists():
+            source_file_name = Path(source_path).name
+            target_file = work_dir_path / source_file_name
+            shutil.copy2(source_path, target_file)
 
         # 証跡ファイルもここでコピー（名前変更して）
         evidence_template = self.config_manager.get_common_template("証跡")
         if evidence_template and Path(evidence_template).exists():
-            # 証跡ファイル名を生成（作業用ディレクトリ名から取得）
-            work_dir_name = work_dir_path.name
-            evidence_name = f"{work_dir_name}-作業証跡.xlsx"
+            # 証跡ファイル名を生成（指定された形式）
+            evidence_name = f"作業証跡_{work_type}_{system_name}_{work_date}.xlsx"
             target_file = work_dir_path / "証跡" / evidence_name
             shutil.copy2(evidence_template, target_file)
 

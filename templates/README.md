@@ -8,7 +8,6 @@
 templates/
 ├── common/           # 共通テンプレート
 │   ├── required_procedure.xlsx      # 必須手順書
-│   ├── work_procedure.xlsx          # 作業手順書
 │   ├── evidence.xlsx                # 証跡
 │   └── reception_checklist.xlsx     # 受付チェックシート
 ├── aws/              # AWS用テンプレート

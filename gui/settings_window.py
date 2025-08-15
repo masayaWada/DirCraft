@@ -11,6 +11,15 @@ class SettingsWindow:
         self.parent = parent
         self.config_manager = config_manager
 
+        # メインウィンドウへの参照を保持
+        self.main_window = None
+        # 親ウィンドウからメインウィンドウを検索
+        if hasattr(parent, 'winfo_children'):
+            for child in parent.winfo_children():
+                if hasattr(child, 'update_settings'):
+                    self.main_window = child
+                    break
+
         # 設定画面ウィンドウを作成
         self.window = tk.Toplevel(parent)
         self.window.title("設定")
@@ -185,11 +194,14 @@ class SettingsWindow:
     def _update_parent_settings(self):
         """親ウィンドウの設定を更新"""
         try:
+            # メインウィンドウの設定を更新
+            if self.main_window and hasattr(self.main_window, 'update_settings'):
+                self.main_window.update_settings()
             # 親ウィンドウの設定を更新するメソッドがある場合
-            if hasattr(self.parent, 'update_settings'):
+            elif hasattr(self.parent, 'update_settings'):
                 self.parent.update_settings()
         except Exception:
-            pass  # 親ウィンドウに更新メソッドがない場合は無視
+            pass  # 設定更新に失敗した場合は無視
 
     def _on_closing(self):
         """ウィンドウが閉じられるときの処理"""

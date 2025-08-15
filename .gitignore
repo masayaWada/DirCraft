@@ -21,11 +21,12 @@ wheels/
 *.egg
 MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-build/
-dist/
+# nuitka
+main.build/
+main.dist/
+main.onefile-build/
+DirCraft_debug.exe
+DirCraft.exe
 
 # Virtual environments
 venv/
@@ -62,7 +63,7 @@ tmp/
 
 
 # Config files (optional - remove if you want to track config changes)
-# config/*.json
+config/*.json
 
 # Template files (optional - remove if you want to track template changes)
 templates/*.xlsx

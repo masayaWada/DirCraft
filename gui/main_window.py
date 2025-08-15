@@ -18,6 +18,9 @@ class MainWindow:
         self.config_manager = ConfigManager()
         self.directory_creator = DirectoryCreator(self.config_manager)
 
+        # 作成されたディレクトリのパスを保存
+        self.created_directory_path = None
+
         # GUI要素を初期化
         self._init_ui()
         self._load_user_settings()
@@ -45,11 +48,14 @@ class MainWindow:
 
         # ステータスバー
         self.status_var = tk.StringVar()
-        self.status_var.set("準備完了")
-        status_bar = ttk.Label(
-            main_frame, textvariable=self.status_var, relief=tk.SUNKEN)
-        status_bar.grid(row=10, column=0, columnspan=2,
-                        sticky=(tk.W, tk.E), pady=(10, 0))
+        self.status_bar = tk.Label(
+            main_frame, textvariable=self.status_var, relief=tk.SUNKEN,
+            bg="white", fg="black", anchor=tk.W, padx=5, pady=2)
+        self.status_bar.grid(row=10, column=0, columnspan=2,
+                             sticky=(tk.W, tk.E), pady=(10, 0))
+
+        # 初期ステータスを設定
+        self._update_status("準備完了", "normal")
 
         # グリッドの重み設定
         self.root.columnconfigure(0, weight=1)
@@ -160,6 +166,10 @@ class MainWindow:
                                command=self._clear_fields)
         clear_btn.pack(side=tk.LEFT, padx=(0, 10))
 
+        copy_btn = ttk.Button(button_frame, text="パスをコピー",
+                              command=self._copy_path_to_clipboard)
+        copy_btn.pack(side=tk.LEFT, padx=(0, 10))
+
         exit_btn = ttk.Button(button_frame, text="終了", command=self.root.quit)
         exit_btn.pack(side=tk.LEFT)
 
@@ -172,6 +182,13 @@ class MainWindow:
         # 今日の日付を設定
         today = datetime.now().strftime("%Y-%m-%d")
         self.work_date_var.set(today)
+
+    def update_settings(self):
+        """設定画面から呼び出される設定更新メソッド"""
+        # デフォルトディレクトリの設定を更新
+        default_dir = self.config_manager.get_user_setting("default_directory")
+        if default_dir:
+            self.parent_dir_var.set(default_dir)
 
     def _browse_directory(self):
         """ディレクトリ選択ダイアログを表示"""
@@ -265,19 +282,40 @@ class MainWindow:
                 change_number, cloud, work_type, work_date, system_name, parent_directory
             )
 
+            # 作成されたディレクトリのパスを保存
+            self.created_directory_path = work_dir_path
+
             # 成功メッセージを表示
             success_message = f"作業用ディレクトリが正常に作成されました。\n\nパス: {work_dir_path}"
             messagebox.showinfo("作成完了", success_message)
 
-            # フィールドをクリア
-            self._clear_fields()
+            # フィールドのみをクリア（パスは保持）
+            self._clear_input_fields_only()
 
             # ステータスを更新
-            self.status_var.set(f"ディレクトリ作成完了: {work_dir_path}")
+            self._update_status(f"ディレクトリ作成完了: {work_dir_path}", "success")
 
         except Exception as e:
             messagebox.showerror("エラー", f"ディレクトリの作成に失敗しました:\n{str(e)}")
-            self.status_var.set("エラーが発生しました")
+            self._update_status("エラーが発生しました", "error")
+
+    def _clear_input_fields_only(self):
+        """入力フィールドのみをクリア（パスは保持）"""
+        self.change_number_var.set("")
+        self.cloud_var.set("")
+        self.work_type_var.set("")
+        self.other_work_type_var.set("")
+        self.system_name_var.set("")
+
+        # 作業内容の選択肢をクリア
+        self.work_type_combo['values'] = []
+        self.work_type_options = []
+
+        # その他の入力フィールドを無効化
+        self.other_work_type_entry.config(state="disabled")
+
+        # 作業日と親ディレクトリは保持
+        # 作成されたディレクトリのパスも保持
 
     def _clear_fields(self):
         """入力フィールドをクリア"""
@@ -294,14 +332,43 @@ class MainWindow:
         # その他の入力フィールドを無効化
         self.other_work_type_entry.config(state="disabled")
 
+        # 作成されたディレクトリのパスをクリア
+        self.created_directory_path = None
+
         # 作業日と親ディレクトリは保持
-        self.status_var.set("フィールドをクリアしました")
+        self._update_status("フィールドをクリアしました", "normal")
+
+    def _copy_path_to_clipboard(self):
+        """作成されたディレクトリのパスをクリップボードにコピー"""
+        if self.created_directory_path:
+            try:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(self.created_directory_path)
+                self._update_status("パスをクリップボードにコピーしました", "success")
+            except Exception as e:
+                self._update_status("クリップボードへのコピーに失敗しました", "error")
+        else:
+            self._update_status("コピーするパスがありません", "error")
+
+    def _update_status(self, message: str, status_type: str = "normal"):
+        """ステータスバーの表示を更新（色分け対応）"""
+        self.status_var.set(message)
+
+        if status_type == "success":
+            # 成功時：緑文字
+            self.status_bar.config(fg="green", bg="white")
+        elif status_type == "error":
+            # エラー時：赤文字
+            self.status_bar.config(fg="red", bg="white")
+        else:
+            # 通常時：黒文字
+            self.status_bar.config(fg="black", bg="white")
 
     def update_settings(self):
         """設定が変更された後に呼び出されるメソッド"""
         # 設定を再読み込み
         self._load_user_settings()
-        self.status_var.set("設定を更新しました")
+        self._update_status("設定を更新しました", "success")
 
     def run(self):
         """アプリケーションを実行"""

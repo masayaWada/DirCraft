@@ -18,6 +18,11 @@ class ConfigManager:
         # 設定ファイルが存在しない場合は初期化
         self._initialize_config_files()
 
+        # 設定ファイルの存在を確認
+        if not self.config_file.exists() or not self.procedures_file.exists():
+            print("設定ファイルが不足しています。再初期化を実行します。")
+            self._initialize_config_files()
+
     def _initialize_config_files(self):
         """設定ファイルが存在しない場合の初期化"""
         if not self.config_file.exists():
@@ -32,7 +37,7 @@ class ConfigManager:
             "user_settings": {
                 "last_name": "山田",
                 "default_directory": str(Path.home() / "Documents" / "DirCraft_Projects"),
-                "team_group_name": "PFGr"
+                "team_group_name": "グループ名"
             }
         }
         self.save_config(default_config)
@@ -53,10 +58,11 @@ class ConfigManager:
                 }
             },
             "common_templates": {
-                "必須手順書": "templates/common/required_procedure.xlsx",
-                "作業手順書": "templates/common/work_procedure.xlsx",
+                "必須手順書": [
+                    "templates/common/required_procedure.xlsx"
+                ],
                 "証跡": "templates/common/evidence.xlsx",
-                "受付チェックシート": "templates/common/reception_checklist.xlsx"
+                "準備調整チェックシート": "templates/common/reception_checklist.xlsx"
             }
         }
         self.save_procedures(default_procedures)
