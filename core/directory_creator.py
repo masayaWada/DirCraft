@@ -116,8 +116,14 @@ class DirectoryCreator:
     def _copy_work_templates(self, work_dir_path: Path, cloud: str, work_type: str):
         """作業内容に応じたテンプレートファイルをコピー"""
         # 作業内容に応じたテンプレートファイルを取得
-        work_templates = self.config_manager.get_procedure_templates(
-            cloud, work_type)
+        if work_type == "その他":
+            # 「その他」の場合は専用のテンプレートを使用
+            work_templates = self.config_manager.get_other_work_templates(
+                cloud)
+        else:
+            # 通常の作業内容の場合は既存のテンプレートを使用
+            work_templates = self.config_manager.get_procedure_templates(
+                cloud, work_type)
 
         if not work_templates:
             return

@@ -23,7 +23,7 @@ class SettingsWindow:
         # 設定画面ウィンドウを作成
         self.window = tk.Toplevel(parent)
         self.window.title("設定")
-        self.window.geometry("500x400")
+        self.window.geometry("600x600")
         self.window.resizable(False, False)
 
         # 親ウィンドウの中央に配置
@@ -68,6 +68,24 @@ class SettingsWindow:
         # グループ名
         self._create_setting_row(
             settings_frame, "グループ名:", self.team_group_name_var, 2)
+
+        # その他作業用テンプレート設定フレーム
+        template_frame = ttk.LabelFrame(
+            main_frame, text="その他作業用テンプレート設定", padding="15")
+        template_frame.pack(fill=tk.X, pady=(0, 20))
+
+        # テンプレート設定用の変数
+        self.aws_other_template_var = tk.StringVar()
+        self.azure_other_template_var = tk.StringVar()
+        self.hybrid_other_template_var = tk.StringVar()
+
+        # 各クラウド用のテンプレート設定
+        self._create_template_row(
+            template_frame, "AWS用テンプレート:", self.aws_other_template_var, 0)
+        self._create_template_row(
+            template_frame, "Azure用テンプレート:", self.azure_other_template_var, 1)
+        self._create_template_row(
+            template_frame, "AWS-Azure用テンプレート:", self.hybrid_other_template_var, 2)
 
         # ボタンフレーム
         button_frame = ttk.Frame(main_frame)
@@ -114,11 +132,38 @@ class SettingsWindow:
 
         parent.columnconfigure(1, weight=1)
 
+    def _create_template_row(self, parent, label_text, variable, row):
+        """テンプレートファイル選択の行を作成"""
+        ttk.Label(parent, text=label_text).grid(
+            row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+
+        # ファイル選択フレーム
+        file_frame = ttk.Frame(parent)
+        file_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+
+        entry = ttk.Entry(file_frame, textvariable=variable, width=30)
+        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        browse_btn = ttk.Button(file_frame, text="参照",
+                                command=lambda: self._browse_template_file(variable))
+        browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+        parent.columnconfigure(1, weight=1)
+
     def _browse_directory(self):
         """ディレクトリ選択ダイアログを表示"""
         directory = filedialog.askdirectory()
         if directory:
             self.default_directory_var.set(directory)
+
+    def _browse_template_file(self, variable):
+        """テンプレートファイル選択ダイアログを表示"""
+        file_path = filedialog.askopenfilename(
+            title="テンプレートファイルを選択",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+        )
+        if file_path:
+            variable.set(file_path)
 
     def _load_current_settings(self):
         """現在の設定を読み込み"""
@@ -128,6 +173,22 @@ class SettingsWindow:
             self.config_manager.get_user_setting("default_directory") or "")
         self.team_group_name_var.set(
             self.config_manager.get_user_setting("team_group_name") or "")
+
+        # その他作業用テンプレートの設定を読み込み
+        procedures = self.config_manager.load_procedures()
+        other_templates = procedures.get("other_work_templates", {})
+
+        aws_templates = other_templates.get("AWS", [])
+        self.aws_other_template_var.set(
+            aws_templates[0] if aws_templates else "")
+
+        azure_templates = other_templates.get("Azure", [])
+        self.azure_other_template_var.set(
+            azure_templates[0] if azure_templates else "")
+
+        hybrid_templates = other_templates.get("AWS-Azure", [])
+        self.hybrid_other_template_var.set(
+            hybrid_templates[0] if hybrid_templates else "")
 
     def _save_settings(self):
         """設定を保存"""
@@ -148,6 +209,9 @@ class SettingsWindow:
             self.config_manager.set_user_setting(
                 "team_group_name", self.team_group_name_var.get().strip())
 
+            # その他作業用テンプレートの設定を保存
+            self._save_other_work_templates()
+
             # 成功メッセージを表示
             messagebox.showinfo("保存完了", "設定が正常に保存されました。")
 
@@ -159,6 +223,20 @@ class SettingsWindow:
 
         except Exception as e:
             messagebox.showerror("エラー", f"設定の保存に失敗しました:\n{str(e)}")
+
+    def _save_other_work_templates(self):
+        """その他作業用テンプレートの設定を保存"""
+        procedures = self.config_manager.load_procedures()
+
+        # その他作業用テンプレートの設定を更新
+        other_work_templates = {
+            "AWS": [self.aws_other_template_var.get().strip()] if self.aws_other_template_var.get().strip() else [],
+            "Azure": [self.azure_other_template_var.get().strip()] if self.azure_other_template_var.get().strip() else [],
+            "AWS-Azure": [self.hybrid_other_template_var.get().strip()] if self.hybrid_other_template_var.get().strip() else []
+        }
+
+        procedures["other_work_templates"] = other_work_templates
+        self.config_manager.save_procedures(procedures)
 
     def _validate_inputs(self):
         """入力値の検証"""

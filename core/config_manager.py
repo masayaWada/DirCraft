@@ -63,6 +63,11 @@ class ConfigManager:
                 ],
                 "証跡": "templates/common/evidence.xlsx",
                 "準備調整チェックシート": "templates/common/reception_checklist.xlsx"
+            },
+            "other_work_templates": {
+                "AWS": ["templates/other/aws_other_procedure.xlsx"],
+                "Azure": ["templates/other/azure_other_procedure.xlsx"],
+                "AWS-Azure": ["templates/other/hybrid_other_procedure.xlsx"]
             }
         }
         self.save_procedures(default_procedures)
@@ -126,3 +131,8 @@ class ConfigManager:
             return template_path
 
         return None
+
+    def get_other_work_templates(self, cloud: str) -> list:
+        """「その他」作業用のテンプレートを取得"""
+        procedures = self.load_procedures()
+        return procedures.get("other_work_templates", {}).get(cloud, [])
