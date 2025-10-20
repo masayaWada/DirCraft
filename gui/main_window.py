@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from typing import Optional
+import os
+import subprocess
+import platform
 from core.config_manager import ConfigManager
 from core.directory_creator import DirectoryCreator
 
@@ -285,6 +288,9 @@ class MainWindow:
             # 作成されたディレクトリのパスを保存
             self.created_directory_path = work_dir_path
 
+            # 作成したディレクトリをエクスプローラーで開く
+            self._open_directory_in_explorer(work_dir_path)
+
             # 成功メッセージを表示
             success_message = f"作業用ディレクトリが正常に作成されました。\n\nパス: {work_dir_path}"
             messagebox.showinfo("作成完了", success_message)
@@ -337,6 +343,23 @@ class MainWindow:
 
         # 作業日と親ディレクトリは保持
         self._update_status("フィールドをクリアしました", "normal")
+
+    def _open_directory_in_explorer(self, directory_path: str):
+        """作成されたディレクトリをエクスプローラーで開く"""
+        try:
+            system = platform.system()
+            if system == "Windows":
+                # Windowsの場合
+                os.startfile(directory_path)
+            elif system == "Darwin":
+                # macOSの場合
+                subprocess.run(["open", directory_path])
+            else:
+                # Linuxなどの場合
+                subprocess.run(["xdg-open", directory_path])
+        except Exception as e:
+            # エラーが発生しても処理は続行
+            print(f"ディレクトリを開く際にエラーが発生しました: {str(e)}")
 
     def _copy_path_to_clipboard(self):
         """作成されたディレクトリのパスをクリップボードにコピー"""
