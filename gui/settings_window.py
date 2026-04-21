@@ -1,7 +1,20 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import messagebox, filedialog
 from pathlib import Path
+
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import (
+    W, E, LEFT, RIGHT, X, BOTH,
+    SUCCESS, SECONDARY, WARNING, OUTLINE,
+)
+
 from core.config_manager import ConfigManager
+
+
+FONT_FAMILY = "Yu Gothic UI"
+FONT_BASE = (FONT_FAMILY, 10)
+FONT_TITLE = (FONT_FAMILY, 20, "bold")
+FONT_SUBTITLE = (FONT_FAMILY, 11)
 
 
 class SettingsWindow:
@@ -11,142 +24,166 @@ class SettingsWindow:
         self.parent = parent
         self.config_manager = config_manager
 
-        # メインウィンドウへの参照を保持
         self.main_window = None
-        # 親ウィンドウからメインウィンドウを検索
-        if hasattr(parent, 'winfo_children'):
+        if hasattr(parent, "winfo_children"):
             for child in parent.winfo_children():
-                if hasattr(child, 'update_settings'):
+                if hasattr(child, "update_settings"):
                     self.main_window = child
                     break
 
-        # 設定画面ウィンドウを作成
-        self.window = tk.Toplevel(parent)
+        self.window = ttk.Toplevel(parent)
         self.window.title("設定")
-        self.window.geometry("600x600")
+        self.window.geometry("640x640")
         self.window.resizable(False, False)
 
-        # 親ウィンドウの中央に配置
         self.window.transient(parent)
         self.window.grab_set()
 
-        # 設定値を保持する変数
         self.last_name_var = tk.StringVar()
         self.default_directory_var = tk.StringVar()
         self.team_group_name_var = tk.StringVar()
 
-        # UI要素を初期化
         self._init_ui()
         self._load_current_settings()
 
-        # ウィンドウが閉じられたときの処理
         self.window.protocol("WM_DELETE_WINDOW", self._on_closing)
 
     def _init_ui(self):
         """UI要素を初期化"""
-        # メインフレーム
-        main_frame = ttk.Frame(self.window, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = ttk.Frame(self.window, padding=24)
+        main_frame.pack(fill=BOTH, expand=True)
 
-        # タイトル
-        title_label = ttk.Label(main_frame, text="設定",
-                                font=("Arial", 16, "bold"))
-        title_label.pack(pady=(0, 20))
+        # ヘッダー
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=X, pady=(0, 8))
 
-        # 設定項目フレーム
-        settings_frame = ttk.LabelFrame(
-            main_frame, text="ユーザー設定", padding="15")
-        settings_frame.pack(fill=tk.X, pady=(0, 20))
+        ttk.Label(header_frame, text="設定", font=FONT_TITLE).pack(anchor=W)
+        ttk.Label(
+            header_frame,
+            text="アプリケーションの動作をカスタマイズします",
+            font=FONT_SUBTITLE,
+            foreground="#6c757d",
+        ).pack(anchor=W, pady=(2, 0))
 
-        # 苗字
-        self._create_setting_row(settings_frame, "苗字:", self.last_name_var, 0)
+        ttk.Separator(main_frame, orient="horizontal").pack(fill=X, pady=(8, 16))
 
-        # デフォルトディレクトリ
+        # ユーザー設定セクション
+        settings_frame = ttk.Labelframe(
+            main_frame, text=" ユーザー設定 ", padding=16
+        )
+        settings_frame.pack(fill=X, pady=(0, 16))
+
+        self._create_setting_row(settings_frame, "苗字", self.last_name_var, 0)
         self._create_directory_row(
-            settings_frame, "デフォルトディレクトリ:", self.default_directory_var, 1)
-
-        # グループ名
+            settings_frame, "デフォルトディレクトリ", self.default_directory_var, 1
+        )
         self._create_setting_row(
-            settings_frame, "グループ名:", self.team_group_name_var, 2)
+            settings_frame, "グループ名", self.team_group_name_var, 2
+        )
 
-        # その他作業用テンプレート設定フレーム
-        template_frame = ttk.LabelFrame(
-            main_frame, text="その他作業用テンプレート設定", padding="15")
-        template_frame.pack(fill=tk.X, pady=(0, 20))
+        # テンプレート設定セクション
+        template_frame = ttk.Labelframe(
+            main_frame, text=" その他作業用テンプレート設定 ", padding=16
+        )
+        template_frame.pack(fill=X, pady=(0, 16))
 
-        # テンプレート設定用の変数
         self.aws_other_template_var = tk.StringVar()
         self.azure_other_template_var = tk.StringVar()
         self.hybrid_other_template_var = tk.StringVar()
 
-        # 各クラウド用のテンプレート設定
         self._create_template_row(
-            template_frame, "AWS用テンプレート:", self.aws_other_template_var, 0)
+            template_frame, "AWS用テンプレート", self.aws_other_template_var, 0
+        )
         self._create_template_row(
-            template_frame, "Azure用テンプレート:", self.azure_other_template_var, 1)
+            template_frame, "Azure用テンプレート", self.azure_other_template_var, 1
+        )
         self._create_template_row(
-            template_frame, "AWS-Azure用テンプレート:", self.hybrid_other_template_var, 2)
+            template_frame, "AWS-Azure用テンプレート", self.hybrid_other_template_var, 2
+        )
 
-        # ボタンフレーム
+        ttk.Separator(main_frame, orient="horizontal").pack(fill=X, pady=(8, 16))
+
+        # ボタン行
         button_frame = ttk.Frame(main_frame)
-        button_frame.pack(pady=(20, 0))
+        button_frame.pack(fill=X)
 
-        # 保存ボタン
+        reset_btn = ttk.Button(
+            button_frame,
+            text="↺  デフォルトに戻す",
+            command=self._reset_to_default,
+            bootstyle=(WARNING, OUTLINE),
+        )
+        reset_btn.pack(side=LEFT)
+
         save_btn = ttk.Button(
-            button_frame, text="保存", command=self._save_settings, style="Accent.TButton")
-        save_btn.pack(side=tk.LEFT, padx=(0, 10))
+            button_frame,
+            text="💾  保存",
+            command=self._save_settings,
+            bootstyle=SUCCESS,
+            width=14,
+        )
+        save_btn.pack(side=RIGHT)
 
-        # キャンセルボタン
         cancel_btn = ttk.Button(
-            button_frame, text="キャンセル", command=self._on_closing)
-        cancel_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        # デフォルトに戻すボタン
-        reset_btn = ttk.Button(button_frame, text="デフォルトに戻す",
-                               command=self._reset_to_default)
-        reset_btn.pack(side=tk.LEFT)
+            button_frame,
+            text="キャンセル",
+            command=self._on_closing,
+            bootstyle=(SECONDARY, OUTLINE),
+        )
+        cancel_btn.pack(side=RIGHT, padx=(0, 8))
 
     def _create_setting_row(self, parent, label_text, variable, row):
         """設定項目の行を作成"""
-        ttk.Label(parent, text=label_text).grid(
-            row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10))
-        entry = ttk.Entry(parent, textvariable=variable, width=40)
-        entry.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+        ttk.Label(parent, text=label_text, foreground="#495057").grid(
+            row=row, column=0, sticky=W, pady=8, padx=(0, 14)
+        )
+        entry = ttk.Entry(parent, textvariable=variable)
+        entry.grid(row=row, column=1, sticky=(W, E), pady=8)
         parent.columnconfigure(1, weight=1)
 
     def _create_directory_row(self, parent, label_text, variable, row):
         """ディレクトリ選択の行を作成"""
-        ttk.Label(parent, text=label_text).grid(
-            row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+        ttk.Label(parent, text=label_text, foreground="#495057").grid(
+            row=row, column=0, sticky=W, pady=8, padx=(0, 14)
+        )
 
-        # ディレクトリ選択フレーム
         dir_frame = ttk.Frame(parent)
-        dir_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+        dir_frame.grid(row=row, column=1, sticky=(W, E), pady=8)
+        dir_frame.columnconfigure(0, weight=1)
 
-        entry = ttk.Entry(dir_frame, textvariable=variable, width=30)
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        entry = ttk.Entry(dir_frame, textvariable=variable)
+        entry.grid(row=0, column=0, sticky=(W, E))
 
-        browse_btn = ttk.Button(dir_frame, text="参照",
-                                command=self._browse_directory)
-        browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        browse_btn = ttk.Button(
+            dir_frame,
+            text="📁  参照",
+            command=self._browse_directory,
+            bootstyle=(SECONDARY, OUTLINE),
+        )
+        browse_btn.grid(row=0, column=1, padx=(8, 0))
 
         parent.columnconfigure(1, weight=1)
 
     def _create_template_row(self, parent, label_text, variable, row):
         """テンプレートファイル選択の行を作成"""
-        ttk.Label(parent, text=label_text).grid(
-            row=row, column=0, sticky=tk.W, pady=5, padx=(0, 10))
+        ttk.Label(parent, text=label_text, foreground="#495057").grid(
+            row=row, column=0, sticky=W, pady=8, padx=(0, 14)
+        )
 
-        # ファイル選択フレーム
         file_frame = ttk.Frame(parent)
-        file_frame.grid(row=row, column=1, sticky=(tk.W, tk.E), pady=5)
+        file_frame.grid(row=row, column=1, sticky=(W, E), pady=8)
+        file_frame.columnconfigure(0, weight=1)
 
-        entry = ttk.Entry(file_frame, textvariable=variable, width=30)
-        entry.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        entry = ttk.Entry(file_frame, textvariable=variable)
+        entry.grid(row=0, column=0, sticky=(W, E))
 
-        browse_btn = ttk.Button(file_frame, text="参照",
-                                command=lambda: self._browse_template_file(variable))
-        browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        browse_btn = ttk.Button(
+            file_frame,
+            text="📄  参照",
+            command=lambda: self._browse_template_file(variable),
+            bootstyle=(SECONDARY, OUTLINE),
+        )
+        browse_btn.grid(row=0, column=1, padx=(8, 0))
 
         parent.columnconfigure(1, weight=1)
 
@@ -160,7 +197,7 @@ class SettingsWindow:
         """テンプレートファイル選択ダイアログを表示"""
         file_path = filedialog.askopenfilename(
             title="テンプレートファイルを選択",
-            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")]
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
         )
         if file_path:
             variable.set(file_path)
@@ -168,32 +205,36 @@ class SettingsWindow:
     def _load_current_settings(self):
         """現在の設定を読み込み"""
         self.last_name_var.set(
-            self.config_manager.get_user_setting("last_name") or "")
+            self.config_manager.get_user_setting("last_name") or ""
+        )
         self.default_directory_var.set(
-            self.config_manager.get_user_setting("default_directory") or "")
+            self.config_manager.get_user_setting("default_directory") or ""
+        )
         self.team_group_name_var.set(
-            self.config_manager.get_user_setting("team_group_name") or "")
+            self.config_manager.get_user_setting("team_group_name") or ""
+        )
 
-        # その他作業用テンプレートの設定を読み込み
         procedures = self.config_manager.load_procedures()
         other_templates = procedures.get("other_work_templates", {})
 
         aws_templates = other_templates.get("AWS", [])
         self.aws_other_template_var.set(
-            aws_templates[0] if aws_templates else "")
+            aws_templates[0] if aws_templates else ""
+        )
 
         azure_templates = other_templates.get("Azure", [])
         self.azure_other_template_var.set(
-            azure_templates[0] if azure_templates else "")
+            azure_templates[0] if azure_templates else ""
+        )
 
         hybrid_templates = other_templates.get("AWS-Azure", [])
         self.hybrid_other_template_var.set(
-            hybrid_templates[0] if hybrid_templates else "")
+            hybrid_templates[0] if hybrid_templates else ""
+        )
 
     def _save_settings(self):
         """設定を保存"""
         try:
-            # 入力値の検証
             errors = self._validate_inputs()
             if errors:
                 error_message = "以下のエラーがあります:\n\n" + \
@@ -201,24 +242,22 @@ class SettingsWindow:
                 messagebox.showerror("入力エラー", error_message)
                 return
 
-            # 設定を保存
             self.config_manager.set_user_setting(
-                "last_name", self.last_name_var.get().strip())
+                "last_name", self.last_name_var.get().strip()
+            )
             self.config_manager.set_user_setting(
-                "default_directory", self.default_directory_var.get().strip())
+                "default_directory", self.default_directory_var.get().strip()
+            )
             self.config_manager.set_user_setting(
-                "team_group_name", self.team_group_name_var.get().strip())
+                "team_group_name", self.team_group_name_var.get().strip()
+            )
 
-            # その他作業用テンプレートの設定を保存
             self._save_other_work_templates()
 
-            # 成功メッセージを表示
             messagebox.showinfo("保存完了", "設定が正常に保存されました。")
 
-            # 親ウィンドウの設定を更新
             self._update_parent_settings()
 
-            # 設定画面を閉じる
             self.window.destroy()
 
         except Exception as e:
@@ -228,11 +267,10 @@ class SettingsWindow:
         """その他作業用テンプレートの設定を保存"""
         procedures = self.config_manager.load_procedures()
 
-        # その他作業用テンプレートの設定を更新
         other_work_templates = {
             "AWS": [self.aws_other_template_var.get().strip()] if self.aws_other_template_var.get().strip() else [],
             "Azure": [self.azure_other_template_var.get().strip()] if self.azure_other_template_var.get().strip() else [],
-            "AWS-Azure": [self.hybrid_other_template_var.get().strip()] if self.hybrid_other_template_var.get().strip() else []
+            "AWS-Azure": [self.hybrid_other_template_var.get().strip()] if self.hybrid_other_template_var.get().strip() else [],
         }
 
         procedures["other_work_templates"] = other_work_templates
@@ -242,11 +280,9 @@ class SettingsWindow:
         """入力値の検証"""
         errors = []
 
-        # 苗字の検証
         if not self.last_name_var.get().strip():
             errors.append("苗字は必須です")
 
-        # デフォルトディレクトリの検証
         default_dir = self.default_directory_var.get().strip()
         if not default_dir:
             errors.append("デフォルトディレクトリは必須です")
@@ -255,7 +291,6 @@ class SettingsWindow:
         elif not Path(default_dir).is_dir():
             errors.append("指定されたパスはディレクトリではありません")
 
-        # PFGrの検証
         if not self.team_group_name_var.get().strip():
             errors.append("PFGrは必須です")
 
@@ -264,7 +299,6 @@ class SettingsWindow:
     def _reset_to_default(self):
         """デフォルト設定に戻す"""
         if messagebox.askyesno("確認", "設定をデフォルトに戻しますか？\n現在の設定は失われます。"):
-            # デフォルト設定を読み込み
             self.config_manager._create_default_config()
             self._load_current_settings()
             messagebox.showinfo("完了", "設定をデフォルトに戻しました。")
@@ -272,29 +306,23 @@ class SettingsWindow:
     def _update_parent_settings(self):
         """親ウィンドウの設定を更新"""
         try:
-            # メインウィンドウの設定を更新
-            if self.main_window and hasattr(self.main_window, 'update_settings'):
+            if self.main_window and hasattr(self.main_window, "update_settings"):
                 self.main_window.update_settings()
-            # 親ウィンドウの設定を更新するメソッドがある場合
-            elif hasattr(self.parent, 'update_settings'):
+            elif hasattr(self.parent, "update_settings"):
                 self.parent.update_settings()
         except Exception:
-            pass  # 設定更新に失敗した場合は無視
+            pass
 
     def _on_closing(self):
         """ウィンドウが閉じられるときの処理"""
-        # 変更があるかチェック
-        current_last_name = self.config_manager.get_user_setting(
-            "last_name") or ""
-        current_default_dir = self.config_manager.get_user_setting(
-            "default_directory") or ""
-        current_team_group_name = self.config_manager.get_user_setting(
-            "team_group_name") or ""
+        current_last_name = self.config_manager.get_user_setting("last_name") or ""
+        current_default_dir = self.config_manager.get_user_setting("default_directory") or ""
+        current_team_group_name = self.config_manager.get_user_setting("team_group_name") or ""
 
         has_changes = (
-            self.last_name_var.get().strip() != current_last_name or
-            self.default_directory_var.get().strip() != current_default_dir or
-            self.team_group_name_var.get().strip() != current_team_group_name
+            self.last_name_var.get().strip() != current_last_name
+            or self.default_directory_var.get().strip() != current_default_dir
+            or self.team_group_name_var.get().strip() != current_team_group_name
         )
 
         if has_changes:
