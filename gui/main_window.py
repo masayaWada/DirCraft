@@ -14,6 +14,7 @@ from ttkbootstrap.constants import (
 
 from core.config_manager import ConfigManager
 from core.directory_creator import DirectoryCreator
+from .icons import IconSet
 
 
 FONT_FAMILY = "Yu Gothic UI"
@@ -35,6 +36,10 @@ class MainWindow:
         self.root.minsize(720, 560)
 
         self._configure_styles()
+
+        self.icons = IconSet([
+            "settings", "folder", "add", "copy", "clear", "close",
+        ])
 
         self.config_manager = ConfigManager()
         self.directory_creator = DirectoryCreator(self.config_manager)
@@ -93,7 +98,9 @@ class MainWindow:
 
         settings_btn = ttk.Button(
             header,
-            text="⚙  設定",
+            text=" 設定",
+            image=self.icons.get("settings"),
+            compound=LEFT,
             command=self._open_settings,
             bootstyle=(SECONDARY, OUTLINE),
         )
@@ -195,7 +202,9 @@ class MainWindow:
 
         browse_btn = ttk.Button(
             dir_frame,
-            text="📁  参照",
+            text=" 参照",
+            image=self.icons.get("folder"),
+            compound=LEFT,
             command=self._browse_directory,
             bootstyle=(SECONDARY, OUTLINE),
         )
@@ -222,7 +231,9 @@ class MainWindow:
 
         create_btn = ttk.Button(
             primary_frame,
-            text="📂  ディレクトリ作成",
+            text=" ディレクトリ作成",
+            image=self.icons.get("add"),
+            compound=LEFT,
             command=self._create_directory,
             bootstyle=SUCCESS,
             width=22,
@@ -231,7 +242,9 @@ class MainWindow:
 
         copy_btn = ttk.Button(
             secondary_frame,
-            text="📋  パスをコピー",
+            text=" パスをコピー",
+            image=self.icons.get("copy"),
+            compound=LEFT,
             command=self._copy_path_to_clipboard,
             bootstyle=(INFO, OUTLINE),
         )
@@ -239,7 +252,9 @@ class MainWindow:
 
         clear_btn = ttk.Button(
             secondary_frame,
-            text="🧹  クリア",
+            text=" クリア",
+            image=self.icons.get("clear"),
+            compound=LEFT,
             command=self._clear_fields,
             bootstyle=(SECONDARY, OUTLINE),
         )
@@ -247,7 +262,9 @@ class MainWindow:
 
         exit_btn = ttk.Button(
             secondary_frame,
-            text="✕  終了",
+            text=" 終了",
+            image=self.icons.get("close"),
+            compound=LEFT,
             command=self.root.quit,
             bootstyle=(SECONDARY, LINK),
         )

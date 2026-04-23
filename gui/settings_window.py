@@ -9,6 +9,7 @@ from ttkbootstrap.constants import (
 )
 
 from core.config_manager import ConfigManager
+from .icons import IconSet
 
 
 FONT_FAMILY = "Yu Gothic UI"
@@ -38,6 +39,10 @@ class SettingsWindow:
 
         self.window.transient(parent)
         self.window.grab_set()
+
+        self.icons = IconSet([
+            "folder", "file", "check", "cancel", "reload",
+        ])
 
         self.last_name_var = tk.StringVar()
         self.default_directory_var = tk.StringVar()
@@ -109,7 +114,9 @@ class SettingsWindow:
 
         reset_btn = ttk.Button(
             button_frame,
-            text="↺  デフォルトに戻す",
+            text=" デフォルトに戻す",
+            image=self.icons.get("reload"),
+            compound=LEFT,
             command=self._reset_to_default,
             bootstyle=(WARNING, OUTLINE),
         )
@@ -117,7 +124,9 @@ class SettingsWindow:
 
         save_btn = ttk.Button(
             button_frame,
-            text="💾  保存",
+            text=" 保存",
+            image=self.icons.get("check"),
+            compound=LEFT,
             command=self._save_settings,
             bootstyle=SUCCESS,
             width=14,
@@ -126,7 +135,9 @@ class SettingsWindow:
 
         cancel_btn = ttk.Button(
             button_frame,
-            text="キャンセル",
+            text=" キャンセル",
+            image=self.icons.get("cancel"),
+            compound=LEFT,
             command=self._on_closing,
             bootstyle=(SECONDARY, OUTLINE),
         )
@@ -156,7 +167,9 @@ class SettingsWindow:
 
         browse_btn = ttk.Button(
             dir_frame,
-            text="📁  参照",
+            text=" 参照",
+            image=self.icons.get("folder"),
+            compound=LEFT,
             command=self._browse_directory,
             bootstyle=(SECONDARY, OUTLINE),
         )
@@ -179,7 +192,9 @@ class SettingsWindow:
 
         browse_btn = ttk.Button(
             file_frame,
-            text="📄  参照",
+            text=" 参照",
+            image=self.icons.get("file"),
+            compound=LEFT,
             command=lambda: self._browse_template_file(variable),
             bootstyle=(SECONDARY, OUTLINE),
         )
