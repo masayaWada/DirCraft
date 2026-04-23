@@ -11,10 +11,11 @@ from ttkbootstrap.constants import (
     SUCCESS, INFO, SECONDARY, DANGER, WARNING, LINK,
     OUTLINE,
 )
+from ttkbootstrap.tooltip import ToolTip
 
 from core.config_manager import ConfigManager
 from core.directory_creator import DirectoryCreator
-from .icons import IconSet
+from .icons import IconSet, resource_path
 
 
 FONT_FAMILY = "Yu Gothic UI"
@@ -35,6 +36,7 @@ class MainWindow:
         self.root.geometry("840x660")
         self.root.minsize(720, 560)
 
+        self._set_window_icon()
         self._configure_styles()
 
         self.icons = IconSet([
@@ -47,7 +49,35 @@ class MainWindow:
         self.created_directory_path = None
 
         self._init_ui()
+        self._bind_shortcuts()
         self._load_user_settings()
+
+    def _set_window_icon(self):
+        """タスクバー/ウィンドウタイトルバーのアイコンを設定。"""
+        ico_path = resource_path("DirCraft.ico")
+        if ico_path.exists():
+            try:
+                self.root.iconbitmap(default=str(ico_path))
+                return
+            except tk.TclError:
+                pass  # Windows 以外は .ico 非対応
+        # フォールバック: PNG 版があれば iconphoto で設定
+        png_path = resource_path("assets", "icons", "add.png")
+        if png_path.exists():
+            try:
+                self._window_icon_image = tk.PhotoImage(file=str(png_path))
+                self.root.iconphoto(True, self._window_icon_image)
+            except tk.TclError:
+                pass
+
+    def _bind_shortcuts(self):
+        """キーボードショートカットを登録。"""
+        # Ctrl+Enter: ディレクトリ作成
+        self.root.bind_all("<Control-Return>", lambda _e: self._create_directory())
+        # Ctrl+,: 設定画面を開く
+        self.root.bind_all("<Control-comma>", lambda _e: self._open_settings())
+        # Escape: 終了（フォーカス位置によらず）
+        self.root.bind_all("<Escape>", lambda _e: self.root.quit())
 
     def _configure_styles(self):
         """ベースフォントとカスタムスタイルを設定"""
@@ -105,6 +135,7 @@ class MainWindow:
             bootstyle=(SECONDARY, OUTLINE),
         )
         settings_btn.grid(row=0, column=1, sticky=E, padx=(12, 0))
+        ToolTip(settings_btn, text="ユーザー設定を開く (Ctrl+,)", bootstyle=INFO)
 
     def _create_input_fields(self, parent):
         """入力フィールドを作成"""
@@ -123,6 +154,11 @@ class MainWindow:
         self.change_number_entry.grid(
             row=3, column=1, sticky=(W, E), pady=row_pady, padx=field_padx
         )
+        ToolTip(
+            self.change_number_entry,
+            text="例: CHG0001234\n'CHG' で始まる変更番号を入力します",
+            bootstyle=INFO,
+        )
 
         # 対象クラウド
         ttk.Label(parent, text="対象クラウド", style="FieldLabel.TLabel").grid(
@@ -137,6 +173,11 @@ class MainWindow:
         )
         cloud_combo.grid(row=4, column=1, sticky=(W, E), pady=row_pady, padx=field_padx)
         cloud_combo.bind("<<ComboboxSelected>>", self._on_cloud_selected)
+        ToolTip(
+            cloud_combo,
+            text="作業対象のクラウド基盤を選択\n選択すると作業内容の候補が更新されます",
+            bootstyle=INFO,
+        )
 
         # 作業内容
         ttk.Label(parent, text="作業内容", style="FieldLabel.TLabel").grid(
@@ -167,15 +208,35 @@ class MainWindow:
         self.work_type_combo.bind(
             "<<ComboboxSelected>>", self._on_work_type_selected
         )
+        ToolTip(
+            self.work_type_combo,
+            text="対応する手順書テンプレートを自動で選択します\n候補に無い場合は「その他」を選択",
+            bootstyle=INFO,
+        )
+        ToolTip(
+            self.other_work_type_entry,
+            text="「その他」選択時の作業内容を自由入力",
+            bootstyle=INFO,
+        )
 
-        # 作業日
+        # 作業日（DateEntry: カレンダーポップアップ付き）
         ttk.Label(parent, text="作業日", style="FieldLabel.TLabel").grid(
             row=6, column=0, sticky=W, pady=row_pady, padx=label_padx
         )
-        self.work_date_var = tk.StringVar()
-        self.work_date_entry = ttk.Entry(parent, textvariable=self.work_date_var)
+        self.work_date_entry = ttk.DateEntry(
+            parent,
+            dateformat="%Y-%m-%d",
+            firstweekday=0,
+            bootstyle=SECONDARY,
+            startdate=datetime.now(),
+        )
         self.work_date_entry.grid(
             row=6, column=1, sticky=(W, E), pady=row_pady, padx=field_padx
+        )
+        ToolTip(
+            self.work_date_entry,
+            text="作業実施日。右端のカレンダーから選択するか直接入力",
+            bootstyle=INFO,
         )
 
         # 変更対象システム名
@@ -186,6 +247,11 @@ class MainWindow:
         self.system_name_entry = ttk.Entry(parent, textvariable=self.system_name_var)
         self.system_name_entry.grid(
             row=7, column=1, sticky=(W, E), pady=row_pady, padx=field_padx
+        )
+        ToolTip(
+            self.system_name_entry,
+            text="変更対象のシステム名を入力\nフォルダ名・証跡ファイル名に使われます",
+            bootstyle=INFO,
         )
 
         # 親ディレクトリ
@@ -199,6 +265,11 @@ class MainWindow:
         self.parent_dir_var = tk.StringVar()
         self.parent_dir_entry = ttk.Entry(dir_frame, textvariable=self.parent_dir_var)
         self.parent_dir_entry.grid(row=0, column=0, sticky=(W, E))
+        ToolTip(
+            self.parent_dir_entry,
+            text="作業フォルダの作成先となる親ディレクトリ",
+            bootstyle=INFO,
+        )
 
         browse_btn = ttk.Button(
             dir_frame,
@@ -209,6 +280,7 @@ class MainWindow:
             bootstyle=(SECONDARY, OUTLINE),
         )
         browse_btn.grid(row=0, column=1, padx=(8, 0))
+        ToolTip(browse_btn, text="ディレクトリ選択ダイアログを開く", bootstyle=INFO)
 
         parent.columnconfigure(1, weight=1)
 
@@ -239,6 +311,11 @@ class MainWindow:
             width=22,
         )
         create_btn.pack(side=LEFT)
+        ToolTip(
+            create_btn,
+            text="入力内容を元に作業用ディレクトリを作成 (Ctrl+Enter)",
+            bootstyle=INFO,
+        )
 
         copy_btn = ttk.Button(
             secondary_frame,
@@ -249,6 +326,11 @@ class MainWindow:
             bootstyle=(INFO, OUTLINE),
         )
         copy_btn.pack(side=LEFT, padx=(0, 8))
+        ToolTip(
+            copy_btn,
+            text="直前に作成したディレクトリのフルパスをクリップボードへコピー",
+            bootstyle=INFO,
+        )
 
         clear_btn = ttk.Button(
             secondary_frame,
@@ -259,6 +341,7 @@ class MainWindow:
             bootstyle=(SECONDARY, OUTLINE),
         )
         clear_btn.pack(side=LEFT, padx=(0, 8))
+        ToolTip(clear_btn, text="入力フィールドをリセット", bootstyle=INFO)
 
         exit_btn = ttk.Button(
             secondary_frame,
@@ -269,6 +352,7 @@ class MainWindow:
             bootstyle=(SECONDARY, LINK),
         )
         exit_btn.pack(side=LEFT)
+        ToolTip(exit_btn, text="アプリケーションを終了 (Esc)", bootstyle=INFO)
 
     def _create_status_bar(self, parent):
         """フラットなステータスバーを作成"""
@@ -290,9 +374,6 @@ class MainWindow:
         default_dir = self.config_manager.get_user_setting("default_directory")
         if default_dir:
             self.parent_dir_var.set(default_dir)
-
-        today = datetime.now().strftime("%Y-%m-%d")
-        self.work_date_var.set(today)
 
     def _browse_directory(self):
         """ディレクトリ選択ダイアログを表示"""
@@ -352,7 +433,7 @@ class MainWindow:
             else:
                 work_type = selected_work_type.strip()
 
-            work_date = self.work_date_var.get().strip()
+            work_date = self.work_date_entry.entry.get().strip()
             system_name = self.system_name_var.get().strip()
             parent_directory = self.parent_dir_var.get().strip()
 

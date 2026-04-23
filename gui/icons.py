@@ -10,12 +10,19 @@ import tkinter as tk
 from pathlib import Path
 
 
-def _assets_root() -> Path:
-    """開発時/PyInstaller 同梱時のどちらでも assets ディレクトリを返す。"""
+def resource_path(*parts: str) -> Path:
+    """プロジェクトルート基準のリソースパスを返す。
+
+    PyInstaller で onefile バンドル化された場合は ``sys._MEIPASS`` 以下の
+    展開先を基準にする。
+    """
     meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        return Path(meipass) / "assets"
-    return Path(__file__).resolve().parent.parent / "assets"
+    base = Path(meipass) if meipass else Path(__file__).resolve().parent.parent
+    return base.joinpath(*parts)
+
+
+def _assets_root() -> Path:
+    return resource_path("assets")
 
 
 class IconSet:

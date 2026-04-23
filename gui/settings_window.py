@@ -5,11 +5,12 @@ from pathlib import Path
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
     W, E, LEFT, RIGHT, X, BOTH,
-    SUCCESS, SECONDARY, WARNING, OUTLINE,
+    SUCCESS, INFO, SECONDARY, WARNING, OUTLINE,
 )
+from ttkbootstrap.tooltip import ToolTip
 
 from core.config_manager import ConfigManager
-from .icons import IconSet
+from .icons import IconSet, resource_path
 
 
 FONT_FAMILY = "Yu Gothic UI"
@@ -36,9 +37,19 @@ class SettingsWindow:
         self.window.title("設定")
         self.window.geometry("640x640")
         self.window.resizable(False, False)
+        ico_path = resource_path("DirCraft.ico")
+        if ico_path.exists():
+            try:
+                self.window.iconbitmap(str(ico_path))
+            except tk.TclError:
+                pass
 
         self.window.transient(parent)
         self.window.grab_set()
+
+        # ショートカット: Enter=保存, Esc=キャンセル
+        self.window.bind("<Return>", lambda _e: self._save_settings())
+        self.window.bind("<Escape>", lambda _e: self._on_closing())
 
         self.icons = IconSet([
             "folder", "file", "check", "cancel", "reload",
@@ -121,6 +132,11 @@ class SettingsWindow:
             bootstyle=(WARNING, OUTLINE),
         )
         reset_btn.pack(side=LEFT)
+        ToolTip(
+            reset_btn,
+            text="全ての設定を初期値に戻します\n（現在の設定は破棄されます）",
+            bootstyle=INFO,
+        )
 
         save_btn = ttk.Button(
             button_frame,
@@ -132,6 +148,7 @@ class SettingsWindow:
             width=14,
         )
         save_btn.pack(side=RIGHT)
+        ToolTip(save_btn, text="設定を保存して閉じる (Enter)", bootstyle=INFO)
 
         cancel_btn = ttk.Button(
             button_frame,
@@ -142,6 +159,7 @@ class SettingsWindow:
             bootstyle=(SECONDARY, OUTLINE),
         )
         cancel_btn.pack(side=RIGHT, padx=(0, 8))
+        ToolTip(cancel_btn, text="変更を破棄して閉じる (Esc)", bootstyle=INFO)
 
     def _create_setting_row(self, parent, label_text, variable, row):
         """設定項目の行を作成"""
@@ -307,7 +325,7 @@ class SettingsWindow:
             errors.append("指定されたパスはディレクトリではありません")
 
         if not self.team_group_name_var.get().strip():
-            errors.append("PFGrは必須です")
+            errors.append("グループ名は必須です")
 
         return errors
 
