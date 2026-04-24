@@ -2,7 +2,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from .config_manager import ConfigManager
 
 
@@ -12,6 +12,21 @@ class DirectoryCreator:
     def __init__(self, config_manager: ConfigManager):
         self.config_manager = config_manager
 
+    def compute_directory_path(
+        self,
+        change_number: str,
+        cloud: str,
+        work_type: str,
+        work_date: str,
+        system_name: str,
+        parent_directory: str,
+    ) -> Path:
+        """実際に作成される作業用ディレクトリのパスを（作成せずに）返す。"""
+        directory_name = self._generate_directory_name(
+            change_number, cloud, work_type, work_date, system_name
+        )
+        return Path(parent_directory) / directory_name
+
     def create_work_directory(
         self,
         change_number: str,
@@ -19,47 +34,32 @@ class DirectoryCreator:
         work_type: str,
         work_date: str,
         system_name: str,
-        parent_directory: str
+        parent_directory: str,
+        allow_existing: bool = False,
     ) -> str:
-        """
-        作業用ディレクトリを作成し、必要なファイルをコピー
+        """作業用ディレクトリを作成し、必要なファイルをコピー。
 
-        Args:
-            change_number: 変更番号
-            cloud: 対象クラウド
-            work_type: 作業内容
-            work_date: 作業日
-            system_name: 変更対象システム名
-            parent_directory: 親ディレクトリのパス
-
-        Returns:
-            作成された作業用ディレクトリのパス
+        ``allow_existing`` が False で既存のディレクトリと衝突する場合は
+        ``FileExistsError`` を送出する。呼び出し側が True を渡した場合は
+        既存ディレクトリにテンプレートをマージする（破壊的操作は行わない）。
         """
         try:
-            # 作業用ディレクトリ名を生成
-            directory_name = self._generate_directory_name(
-                change_number, cloud, work_type, work_date, system_name
+            work_dir_path = self.compute_directory_path(
+                change_number, cloud, work_type, work_date, system_name, parent_directory
             )
 
-            # 作業用ディレクトリのパス
-            work_dir_path = Path(parent_directory) / directory_name
-
-            # ディレクトリが既に存在する場合はエラー
-            if work_dir_path.exists():
+            if work_dir_path.exists() and not allow_existing:
                 raise FileExistsError(f"作業用ディレクトリが既に存在します: {work_dir_path}")
 
-            # 作業用ディレクトリとサブディレクトリを作成
             self._create_directory_structure(work_dir_path)
-
-            # 共通テンプレートファイルをコピー
             self._copy_common_templates(
                 work_dir_path, work_type, system_name, work_date)
-
-            # 作業内容に応じたテンプレートファイルをコピー
             self._copy_work_templates(work_dir_path, cloud, work_type)
 
             return str(work_dir_path)
 
+        except FileExistsError:
+            raise
         except Exception as e:
             raise Exception(f"作業用ディレクトリの作成に失敗しました: {str(e)}")
 
@@ -143,40 +143,36 @@ class DirectoryCreator:
         work_date: str,
         system_name: str,
         parent_directory: str
-    ) -> List[str]:
-        """入力値の検証を行い、エラーメッセージのリストを返す"""
-        errors = []
+    ) -> Dict[str, str]:
+        """入力値の検証を行い、フィールド名とエラーメッセージの辞書を返す。
 
-        # 変更番号の検証
+        エラーが無い場合は空の辞書を返す。
+        """
+        errors: Dict[str, str] = {}
+
         if not change_number or not change_number.strip():
-            errors.append("変更番号は必須です")
+            errors["change_number"] = "変更番号は必須です"
         elif not change_number.startswith("CHG"):
-            errors.append("変更番号は'CHG'で始まる必要があります")
+            errors["change_number"] = "変更番号は 'CHG' で始まる必要があります"
 
-        # 対象クラウドの検証
         valid_clouds = ["AWS", "Azure", "AWS-Azure"]
         if cloud not in valid_clouds:
-            errors.append(
-                f"対象クラウドは以下のいずれかである必要があります: {', '.join(valid_clouds)}")
+            errors["cloud"] = f"対象クラウドは {', '.join(valid_clouds)} のいずれかを選択してください"
 
-        # 作業内容の検証
         if not work_type or not work_type.strip():
-            errors.append("作業内容は必須です")
+            errors["work_type"] = "作業内容は必須です"
 
-        # 作業日の検証
         if not work_date or not work_date.strip():
-            errors.append("作業日は必須です")
+            errors["work_date"] = "作業日は必須です"
 
-        # システム名の検証
         if not system_name or not system_name.strip():
-            errors.append("変更対象システム名は必須です")
+            errors["system_name"] = "変更対象システム名は必須です"
 
-        # 親ディレクトリの検証
         if not parent_directory or not parent_directory.strip():
-            errors.append("親ディレクトリのパスは必須です")
+            errors["parent_directory"] = "親ディレクトリのパスは必須です"
         elif not Path(parent_directory).exists():
-            errors.append("指定された親ディレクトリが存在しません")
+            errors["parent_directory"] = "指定された親ディレクトリが存在しません"
         elif not Path(parent_directory).is_dir():
-            errors.append("指定されたパスはディレクトリではありません")
+            errors["parent_directory"] = "指定されたパスはディレクトリではありません"
 
         return errors

@@ -25,18 +25,36 @@ def _assets_root() -> Path:
     return resource_path("assets")
 
 
+def _detect_scaling(root: tk.Misc | None = None) -> float:
+    """現在の Tk の表示スケール（1.0 = 96 DPI）を返す。"""
+    try:
+        if root is None:
+            root = tk._default_root  # type: ignore[attr-defined]
+        if root is None:
+            return 1.0
+        # tk scaling は "pixels per point" を返す (72pt = 1inch)
+        pixels_per_point = float(root.tk.call("tk", "scaling"))
+        return pixels_per_point * 72.0 / 96.0
+    except Exception:
+        return 1.0
+
+
 class IconSet:
     """アイコンの PhotoImage をまとめて保持するコンテナ。
 
     tkinter は PhotoImage への参照が途切れると画像を GC するため、
     ウィンドウ側からこのインスタンスを属性として保持する。
+    HiDPI 環境では ``<name>@2x.png`` が存在すればそれを採用する。
     """
 
-    def __init__(self, names: list[str]) -> None:
+    def __init__(self, names: list[str], root: tk.Misc | None = None) -> None:
         self._images: dict[str, tk.PhotoImage] = {}
         icons_dir = _assets_root() / "icons"
+        use_hidpi = _detect_scaling(root) >= 1.5
         for name in names:
-            path = icons_dir / f"{name}.png"
+            hidpi_path = icons_dir / f"{name}@2x.png"
+            std_path = icons_dir / f"{name}.png"
+            path = hidpi_path if (use_hidpi and hidpi_path.exists()) else std_path
             if path.exists():
                 self._images[name] = tk.PhotoImage(file=str(path))
 

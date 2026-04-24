@@ -1,9 +1,12 @@
+import logging
 import tkinter as tk
 from tkinter import messagebox, filedialog
 from datetime import datetime
 import os
 import subprocess
 import platform
+
+logger = logging.getLogger(__name__)
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
@@ -29,9 +32,14 @@ class MainWindow:
     """メインウィンドウクラス"""
 
     def __init__(self):
+        # ConfigManager を先に生成してテーマ設定を反映
+        self.config_manager = ConfigManager()
+        self.directory_creator = DirectoryCreator(self.config_manager)
+        theme = self.config_manager.get_user_setting("theme") or "cosmo"
+
         self.root = ttk.Window(
             title="DirCraft - 作業用フォルダ作成ツール",
-            themename="cosmo",
+            themename=theme,
         )
         self.root.geometry("840x660")
         self.root.minsize(720, 560)
@@ -39,12 +47,10 @@ class MainWindow:
         self._set_window_icon()
         self._configure_styles()
 
-        self.icons = IconSet([
-            "settings", "folder", "add", "copy", "clear", "close",
-        ])
-
-        self.config_manager = ConfigManager()
-        self.directory_creator = DirectoryCreator(self.config_manager)
+        self.icons = IconSet(
+            ["settings", "folder", "add", "copy", "clear", "close"],
+            root=self.root,
+        )
 
         self.created_directory_path = None
 
@@ -102,13 +108,33 @@ class MainWindow:
             row=2, column=0, columnspan=2, sticky=(W, E), pady=(4, 16)
         )
 
+        # フィールドキー → ウィジェット（バリデーション結果の反映先）
+        self._field_widgets: dict[str, tk.Widget] = {}
+
         self._create_input_fields(main_frame)
+        self._create_error_banner(main_frame)
         self._create_action_buttons(main_frame)
         self._create_status_bar(main_frame)
 
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
+
+    def _create_error_banner(self, parent):
+        """バリデーションエラーを表示するインラインバナー（初期は非表示）。"""
+        self._error_banner = ttk.Label(
+            parent,
+            text="",
+            bootstyle=(DANGER, "inverse"),
+            padding=(12, 8),
+            anchor=W,
+            justify=LEFT,
+            wraplength=760,
+        )
+        self._error_banner.grid(
+            row=9, column=0, columnspan=2, sticky=(W, E), pady=(0, 12)
+        )
+        self._error_banner.grid_remove()
 
     def _create_header(self, parent):
         """ヘッダー（タイトル + 設定ボタン）を作成"""
@@ -159,6 +185,7 @@ class MainWindow:
             text="例: CHG0001234\n'CHG' で始まる変更番号を入力します",
             bootstyle=INFO,
         )
+        self._register_field("change_number", self.change_number_entry)
 
         # 対象クラウド
         ttk.Label(parent, text="対象クラウド", style="FieldLabel.TLabel").grid(
@@ -178,6 +205,7 @@ class MainWindow:
             text="作業対象のクラウド基盤を選択\n選択すると作業内容の候補が更新されます",
             bootstyle=INFO,
         )
+        self._register_field("cloud", cloud_combo)
 
         # 作業内容
         ttk.Label(parent, text="作業内容", style="FieldLabel.TLabel").grid(
@@ -218,6 +246,7 @@ class MainWindow:
             text="「その他」選択時の作業内容を自由入力",
             bootstyle=INFO,
         )
+        self._register_field("work_type", self.work_type_combo)
 
         # 作業日（DateEntry: カレンダーポップアップ付き）
         ttk.Label(parent, text="作業日", style="FieldLabel.TLabel").grid(
@@ -238,6 +267,7 @@ class MainWindow:
             text="作業実施日。右端のカレンダーから選択するか直接入力",
             bootstyle=INFO,
         )
+        self._register_field("work_date", self.work_date_entry)
 
         # 変更対象システム名
         ttk.Label(parent, text="変更対象システム名", style="FieldLabel.TLabel").grid(
@@ -253,6 +283,7 @@ class MainWindow:
             text="変更対象のシステム名を入力\nフォルダ名・証跡ファイル名に使われます",
             bootstyle=INFO,
         )
+        self._register_field("system_name", self.system_name_entry)
 
         # 親ディレクトリ
         ttk.Label(parent, text="親ディレクトリ", style="FieldLabel.TLabel").grid(
@@ -270,6 +301,7 @@ class MainWindow:
             text="作業フォルダの作成先となる親ディレクトリ",
             bootstyle=INFO,
         )
+        self._register_field("parent_directory", self.parent_dir_entry)
 
         browse_btn = ttk.Button(
             dir_frame,
@@ -287,11 +319,11 @@ class MainWindow:
     def _create_action_buttons(self, parent):
         """アクションボタン群を作成"""
         ttk.Separator(parent, orient="horizontal").grid(
-            row=9, column=0, columnspan=2, sticky=(W, E), pady=(16, 12)
+            row=10, column=0, columnspan=2, sticky=(W, E), pady=(16, 12)
         )
 
         button_frame = ttk.Frame(parent)
-        button_frame.grid(row=10, column=0, columnspan=2, sticky=(W, E))
+        button_frame.grid(row=11, column=0, columnspan=2, sticky=(W, E))
         button_frame.columnconfigure(0, weight=1)
 
         # 右寄せグループ（副ボタン）と左寄せグループ（主ボタン）
@@ -365,9 +397,65 @@ class MainWindow:
             bootstyle=SECONDARY,
         )
         self.status_bar.grid(
-            row=11, column=0, columnspan=2, sticky=(W, E), pady=(16, 0)
+            row=12, column=0, columnspan=2, sticky=(W, E), pady=(16, 0)
         )
         self._update_status("準備完了", "normal")
+
+    def _register_field(self, key: str, widget: tk.Widget) -> None:
+        """フィールドウィジェットを登録し、フォーカス時のエラー解除を結線。"""
+        self._field_widgets[key] = widget
+        widget.bind(
+            "<FocusIn>",
+            lambda _e, k=key: self._clear_field_error(k),
+            add="+",
+        )
+
+    def _show_validation_errors(self, errors: dict) -> None:
+        """エラー辞書をインラインバナーと入力欄の赤枠で表示する。"""
+        if not errors:
+            self._clear_validation_errors()
+            return
+
+        lines = ["入力を確認してください:"]
+        lines.extend(f"• {msg}" for msg in errors.values())
+        self._error_banner.configure(text="\n".join(lines))
+        self._error_banner.grid()
+
+        for key in errors:
+            widget = self._field_widgets.get(key)
+            if widget is not None:
+                try:
+                    widget.configure(bootstyle=DANGER)
+                except tk.TclError:
+                    pass
+
+        first_key = next(iter(errors))
+        first_widget = self._field_widgets.get(first_key)
+        if first_widget is not None:
+            try:
+                first_widget.focus_set()
+            except tk.TclError:
+                pass
+
+    def _clear_validation_errors(self) -> None:
+        """エラーバナーと全フィールドの赤枠を解除。"""
+        self._error_banner.configure(text="")
+        self._error_banner.grid_remove()
+        for widget in self._field_widgets.values():
+            try:
+                widget.configure(bootstyle="")
+            except tk.TclError:
+                pass
+
+    def _clear_field_error(self, key: str) -> None:
+        """特定フィールドの赤枠のみ解除する（ユーザーが編集に入った瞬間）。"""
+        widget = self._field_widgets.get(key)
+        if widget is None:
+            return
+        try:
+            widget.configure(bootstyle="")
+        except tk.TclError:
+            pass
 
     def _load_user_settings(self):
         """ユーザー設定を読み込み"""
@@ -419,7 +507,7 @@ class MainWindow:
     def _open_settings(self):
         """設定画面を開く"""
         from .settings_window import SettingsWindow
-        SettingsWindow(self.root, self.config_manager)
+        SettingsWindow(self.root, self.config_manager, main_window=self)
 
     def _create_directory(self):
         """作業用ディレクトリを作成"""
@@ -442,13 +530,35 @@ class MainWindow:
             )
 
             if errors:
-                error_message = "以下のエラーがあります:\n\n" + \
-                    "\n".join(f"• {error}" for error in errors)
-                messagebox.showerror("入力エラー", error_message)
+                self._show_validation_errors(errors)
+                self._update_status("入力エラーがあります", "error")
                 return
+            self._clear_validation_errors()
+
+            # 既存ディレクトリとの衝突チェック
+            allow_existing = False
+            target_path = self.directory_creator.compute_directory_path(
+                change_number, cloud, work_type, work_date, system_name, parent_directory
+            )
+            if target_path.exists():
+                proceed = messagebox.askyesno(
+                    "ディレクトリが既に存在します",
+                    (
+                        "同名の作業用ディレクトリが既に存在します。\n\n"
+                        f"{target_path}\n\n"
+                        "テンプレートをこのディレクトリにコピー（マージ）しますか？\n"
+                        "※ 既存のファイルと同名のテンプレートは上書きされます。"
+                    ),
+                    icon="warning",
+                )
+                if not proceed:
+                    self._update_status("作成をキャンセルしました", "normal")
+                    return
+                allow_existing = True
 
             work_dir_path = self.directory_creator.create_work_directory(
-                change_number, cloud, work_type, work_date, system_name, parent_directory
+                change_number, cloud, work_type, work_date, system_name, parent_directory,
+                allow_existing=allow_existing,
             )
 
             self.created_directory_path = work_dir_path
@@ -462,6 +572,7 @@ class MainWindow:
             self._update_status(f"ディレクトリ作成完了: {work_dir_path}", "success")
 
         except Exception as e:
+            logger.exception("ディレクトリの作成に失敗しました")
             messagebox.showerror("エラー", f"ディレクトリの作成に失敗しました:\n{str(e)}")
             self._update_status("エラーが発生しました", "error")
 
@@ -490,6 +601,7 @@ class MainWindow:
         self.other_work_type_entry.config(state="disabled")
 
         self.created_directory_path = None
+        self._clear_validation_errors()
         self._update_status("フィールドをクリアしました", "normal")
 
     def _open_directory_in_explorer(self, directory_path: str):
@@ -502,8 +614,8 @@ class MainWindow:
                 subprocess.run(["open", directory_path])
             else:
                 subprocess.run(["xdg-open", directory_path])
-        except Exception as e:
-            print(f"ディレクトリを開く際にエラーが発生しました: {str(e)}")
+        except Exception:
+            logger.exception("ディレクトリを開く際にエラーが発生しました: %s", directory_path)
 
     def _copy_path_to_clipboard(self):
         """作成されたディレクトリのパスをクリップボードにコピー"""
@@ -531,6 +643,14 @@ class MainWindow:
     def update_settings(self):
         """設定が変更された後に呼び出されるメソッド"""
         self._load_user_settings()
+        theme = self.config_manager.get_user_setting("theme") or "cosmo"
+        try:
+            current = ttk.Style().theme_use()
+            if current != theme:
+                ttk.Style().theme_use(theme)
+                self._configure_styles()  # フォント等を新テーマに再適用
+        except tk.TclError:
+            logger.exception("テーマ切り替えに失敗: %s", theme)
         self._update_status("設定を更新しました", "success")
 
     def run(self):

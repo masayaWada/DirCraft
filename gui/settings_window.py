@@ -5,7 +5,7 @@ from pathlib import Path
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
     W, E, LEFT, RIGHT, X, BOTH,
-    SUCCESS, INFO, SECONDARY, WARNING, OUTLINE,
+    SUCCESS, INFO, SECONDARY, WARNING, DANGER, OUTLINE,
 )
 from ttkbootstrap.tooltip import ToolTip
 
@@ -22,16 +22,10 @@ FONT_SUBTITLE = (FONT_FAMILY, 11)
 class SettingsWindow:
     """設定画面クラス"""
 
-    def __init__(self, parent, config_manager: ConfigManager):
+    def __init__(self, parent, config_manager: ConfigManager, main_window=None):
         self.parent = parent
         self.config_manager = config_manager
-
-        self.main_window = None
-        if hasattr(parent, "winfo_children"):
-            for child in parent.winfo_children():
-                if hasattr(child, "update_settings"):
-                    self.main_window = child
-                    break
+        self.main_window = main_window
 
         self.window = ttk.Toplevel(parent)
         self.window.title("設定")
@@ -51,13 +45,18 @@ class SettingsWindow:
         self.window.bind("<Return>", lambda _e: self._save_settings())
         self.window.bind("<Escape>", lambda _e: self._on_closing())
 
-        self.icons = IconSet([
-            "folder", "file", "check", "cancel", "reload",
-        ])
+        self.icons = IconSet(
+            ["folder", "file", "check", "cancel", "reload"],
+            root=self.window,
+        )
 
         self.last_name_var = tk.StringVar()
         self.default_directory_var = tk.StringVar()
         self.team_group_name_var = tk.StringVar()
+        self.theme_var = tk.StringVar()
+
+        # フィールドキー → ウィジェット
+        self._field_widgets: dict[str, tk.Widget] = {}
 
         self._init_ui()
         self._load_current_settings()
@@ -89,13 +88,19 @@ class SettingsWindow:
         )
         settings_frame.pack(fill=X, pady=(0, 16))
 
-        self._create_setting_row(settings_frame, "苗字", self.last_name_var, 0)
-        self._create_directory_row(
+        last_name_entry = self._create_setting_row(
+            settings_frame, "苗字", self.last_name_var, 0
+        )
+        dir_entry = self._create_directory_row(
             settings_frame, "デフォルトディレクトリ", self.default_directory_var, 1
         )
-        self._create_setting_row(
+        group_entry = self._create_setting_row(
             settings_frame, "グループ名", self.team_group_name_var, 2
         )
+        self._register_field("last_name", last_name_entry)
+        self._register_field("default_directory", dir_entry)
+        self._register_field("team_group_name", group_entry)
+        self._create_theme_row(settings_frame, 3)
 
         # テンプレート設定セクション
         template_frame = ttk.Labelframe(
@@ -119,9 +124,20 @@ class SettingsWindow:
 
         ttk.Separator(main_frame, orient="horizontal").pack(fill=X, pady=(8, 16))
 
+        # エラーバナー（初期は非表示。エラー時に ボタン行の直前に差し込む）
+        self._error_banner = ttk.Label(
+            main_frame,
+            text="",
+            bootstyle=(DANGER, "inverse"),
+            padding=(12, 8),
+            anchor=W,
+            justify=LEFT,
+            wraplength=560,
+        )
         # ボタン行
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=X)
+        self._button_frame = ttk.Frame(main_frame)
+        self._button_frame.pack(fill=X)
+        button_frame = self._button_frame
 
         reset_btn = ttk.Button(
             button_frame,
@@ -162,16 +178,17 @@ class SettingsWindow:
         ToolTip(cancel_btn, text="変更を破棄して閉じる (Esc)", bootstyle=INFO)
 
     def _create_setting_row(self, parent, label_text, variable, row):
-        """設定項目の行を作成"""
+        """設定項目の行を作成し、作成した Entry を返す。"""
         ttk.Label(parent, text=label_text, foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
         )
         entry = ttk.Entry(parent, textvariable=variable)
         entry.grid(row=row, column=1, sticky=(W, E), pady=8)
         parent.columnconfigure(1, weight=1)
+        return entry
 
     def _create_directory_row(self, parent, label_text, variable, row):
-        """ディレクトリ選択の行を作成"""
+        """ディレクトリ選択の行を作成し、作成した Entry を返す。"""
         ttk.Label(parent, text=label_text, foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
         )
@@ -194,6 +211,35 @@ class SettingsWindow:
         browse_btn.grid(row=0, column=1, padx=(8, 0))
 
         parent.columnconfigure(1, weight=1)
+        return entry
+
+    # 表示名 → ttkbootstrap テーマ名
+    _THEME_CHOICES = {
+        "ライト (cosmo)": "cosmo",
+        "ライト (flatly)": "flatly",
+        "ライト (litera)": "litera",
+        "ダーク (darkly)": "darkly",
+        "ダーク (superhero)": "superhero",
+        "ダーク (cyborg)": "cyborg",
+    }
+
+    def _create_theme_row(self, parent, row):
+        """テーマ（配色）選択行を作成。"""
+        ttk.Label(parent, text="テーマ", foreground="#495057").grid(
+            row=row, column=0, sticky=W, pady=8, padx=(0, 14)
+        )
+        combo = ttk.Combobox(
+            parent,
+            textvariable=self.theme_var,
+            values=list(self._THEME_CHOICES.keys()),
+            state="readonly",
+        )
+        combo.grid(row=row, column=1, sticky=(W, E), pady=8)
+        ToolTip(
+            combo,
+            text="配色テーマを切り替えます（保存時に反映）",
+            bootstyle=INFO,
+        )
 
     def _create_template_row(self, parent, label_text, variable, row):
         """テンプレートファイル選択の行を作成"""
@@ -246,6 +292,13 @@ class SettingsWindow:
         self.team_group_name_var.set(
             self.config_manager.get_user_setting("team_group_name") or ""
         )
+        current_theme = self.config_manager.get_user_setting("theme") or "cosmo"
+        # テーマ名から表示ラベルへの逆引き
+        display = next(
+            (label for label, name in self._THEME_CHOICES.items() if name == current_theme),
+            "ライト (cosmo)",
+        )
+        self.theme_var.set(display)
 
         procedures = self.config_manager.load_procedures()
         other_templates = procedures.get("other_work_templates", {})
@@ -270,10 +323,9 @@ class SettingsWindow:
         try:
             errors = self._validate_inputs()
             if errors:
-                error_message = "以下のエラーがあります:\n\n" + \
-                    "\n".join(f"• {error}" for error in errors)
-                messagebox.showerror("入力エラー", error_message)
+                self._show_validation_errors(errors)
                 return
+            self._clear_validation_errors()
 
             self.config_manager.set_user_setting(
                 "last_name", self.last_name_var.get().strip()
@@ -284,6 +336,8 @@ class SettingsWindow:
             self.config_manager.set_user_setting(
                 "team_group_name", self.team_group_name_var.get().strip()
             )
+            theme_name = self._THEME_CHOICES.get(self.theme_var.get(), "cosmo")
+            self.config_manager.set_user_setting("theme", theme_name)
 
             self._save_other_work_templates()
 
@@ -309,25 +363,76 @@ class SettingsWindow:
         procedures["other_work_templates"] = other_work_templates
         self.config_manager.save_procedures(procedures)
 
-    def _validate_inputs(self):
-        """入力値の検証"""
-        errors = []
+    def _validate_inputs(self) -> dict:
+        """入力値の検証。フィールド名 → エラーメッセージの辞書を返す。"""
+        errors: dict = {}
 
         if not self.last_name_var.get().strip():
-            errors.append("苗字は必須です")
+            errors["last_name"] = "苗字は必須です"
 
         default_dir = self.default_directory_var.get().strip()
         if not default_dir:
-            errors.append("デフォルトディレクトリは必須です")
+            errors["default_directory"] = "デフォルトディレクトリは必須です"
         elif not Path(default_dir).exists():
-            errors.append("指定されたディレクトリが存在しません")
+            errors["default_directory"] = "指定されたディレクトリが存在しません"
         elif not Path(default_dir).is_dir():
-            errors.append("指定されたパスはディレクトリではありません")
+            errors["default_directory"] = "指定されたパスはディレクトリではありません"
 
         if not self.team_group_name_var.get().strip():
-            errors.append("グループ名は必須です")
+            errors["team_group_name"] = "グループ名は必須です"
 
         return errors
+
+    def _register_field(self, key: str, widget: tk.Widget) -> None:
+        self._field_widgets[key] = widget
+        widget.bind(
+            "<FocusIn>",
+            lambda _e, k=key: self._clear_field_error(k),
+            add="+",
+        )
+
+    def _show_validation_errors(self, errors: dict) -> None:
+        if not errors:
+            self._clear_validation_errors()
+            return
+        lines = ["入力を確認してください:"]
+        lines.extend(f"• {msg}" for msg in errors.values())
+        self._error_banner.configure(text="\n".join(lines))
+        self._error_banner.pack(fill=X, pady=(0, 12), before=self._button_frame)
+
+        for key in errors:
+            widget = self._field_widgets.get(key)
+            if widget is not None:
+                try:
+                    widget.configure(bootstyle=DANGER)
+                except tk.TclError:
+                    pass
+
+        first_key = next(iter(errors))
+        first_widget = self._field_widgets.get(first_key)
+        if first_widget is not None:
+            try:
+                first_widget.focus_set()
+            except tk.TclError:
+                pass
+
+    def _clear_validation_errors(self) -> None:
+        self._error_banner.configure(text="")
+        self._error_banner.pack_forget()
+        for widget in self._field_widgets.values():
+            try:
+                widget.configure(bootstyle="")
+            except tk.TclError:
+                pass
+
+    def _clear_field_error(self, key: str) -> None:
+        widget = self._field_widgets.get(key)
+        if widget is None:
+            return
+        try:
+            widget.configure(bootstyle="")
+        except tk.TclError:
+            pass
 
     def _reset_to_default(self):
         """デフォルト設定に戻す"""
