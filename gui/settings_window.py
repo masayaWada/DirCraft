@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import tkinter as tk
-from tkinter import messagebox, filedialog
 from pathlib import Path
+from tkinter import filedialog, messagebox
+from typing import TYPE_CHECKING
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
@@ -12,6 +15,9 @@ from ttkbootstrap.tooltip import ToolTip
 from core.config_manager import ConfigManager
 from .icons import IconSet, resource_path
 
+if TYPE_CHECKING:
+    from .main_window import MainWindow
+
 
 FONT_FAMILY = "Yu Gothic UI"
 FONT_BASE = (FONT_FAMILY, 10)
@@ -22,7 +28,12 @@ FONT_SUBTITLE = (FONT_FAMILY, 11)
 class SettingsWindow:
     """設定画面クラス"""
 
-    def __init__(self, parent, config_manager: ConfigManager, main_window=None):
+    def __init__(
+        self,
+        parent: tk.Misc,
+        config_manager: ConfigManager,
+        main_window: "MainWindow | None" = None,
+    ) -> None:
         self.parent = parent
         self.config_manager = config_manager
         self.main_window = main_window
@@ -63,7 +74,7 @@ class SettingsWindow:
 
         self.window.protocol("WM_DELETE_WINDOW", self._on_closing)
 
-    def _init_ui(self):
+    def _init_ui(self) -> None:
         """UI要素を初期化"""
         main_frame = ttk.Frame(self.window, padding=24)
         main_frame.pack(fill=BOTH, expand=True)
@@ -177,7 +188,13 @@ class SettingsWindow:
         cancel_btn.pack(side=RIGHT, padx=(0, 8))
         ToolTip(cancel_btn, text="変更を破棄して閉じる (Esc)", bootstyle=INFO)
 
-    def _create_setting_row(self, parent, label_text, variable, row):
+    def _create_setting_row(
+        self,
+        parent: tk.Widget,
+        label_text: str,
+        variable: tk.StringVar,
+        row: int,
+    ) -> ttk.Entry:
         """設定項目の行を作成し、作成した Entry を返す。"""
         ttk.Label(parent, text=label_text, foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
@@ -187,7 +204,13 @@ class SettingsWindow:
         parent.columnconfigure(1, weight=1)
         return entry
 
-    def _create_directory_row(self, parent, label_text, variable, row):
+    def _create_directory_row(
+        self,
+        parent: tk.Widget,
+        label_text: str,
+        variable: tk.StringVar,
+        row: int,
+    ) -> ttk.Entry:
         """ディレクトリ選択の行を作成し、作成した Entry を返す。"""
         ttk.Label(parent, text=label_text, foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
@@ -223,7 +246,7 @@ class SettingsWindow:
         "ダーク (cyborg)": "cyborg",
     }
 
-    def _create_theme_row(self, parent, row):
+    def _create_theme_row(self, parent: tk.Widget, row: int) -> None:
         """テーマ（配色）選択行を作成。"""
         ttk.Label(parent, text="テーマ", foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
@@ -241,7 +264,13 @@ class SettingsWindow:
             bootstyle=INFO,
         )
 
-    def _create_template_row(self, parent, label_text, variable, row):
+    def _create_template_row(
+        self,
+        parent: tk.Widget,
+        label_text: str,
+        variable: tk.StringVar,
+        row: int,
+    ) -> None:
         """テンプレートファイル選択の行を作成"""
         ttk.Label(parent, text=label_text, foreground="#495057").grid(
             row=row, column=0, sticky=W, pady=8, padx=(0, 14)
@@ -266,13 +295,13 @@ class SettingsWindow:
 
         parent.columnconfigure(1, weight=1)
 
-    def _browse_directory(self):
+    def _browse_directory(self) -> None:
         """ディレクトリ選択ダイアログを表示"""
         directory = filedialog.askdirectory()
         if directory:
             self.default_directory_var.set(directory)
 
-    def _browse_template_file(self, variable):
+    def _browse_template_file(self, variable: tk.StringVar) -> None:
         """テンプレートファイル選択ダイアログを表示"""
         file_path = filedialog.askopenfilename(
             title="テンプレートファイルを選択",
@@ -281,7 +310,7 @@ class SettingsWindow:
         if file_path:
             variable.set(file_path)
 
-    def _load_current_settings(self):
+    def _load_current_settings(self) -> None:
         """現在の設定を読み込み"""
         self.last_name_var.set(
             self.config_manager.get_user_setting("last_name") or ""
@@ -318,7 +347,7 @@ class SettingsWindow:
             hybrid_templates[0] if hybrid_templates else ""
         )
 
-    def _save_settings(self):
+    def _save_settings(self) -> None:
         """設定を保存"""
         try:
             errors = self._validate_inputs()
@@ -350,7 +379,7 @@ class SettingsWindow:
         except Exception as e:
             messagebox.showerror("エラー", f"設定の保存に失敗しました:\n{str(e)}")
 
-    def _save_other_work_templates(self):
+    def _save_other_work_templates(self) -> None:
         """その他作業用テンプレートの設定を保存"""
         procedures = self.config_manager.load_procedures()
 
@@ -363,9 +392,9 @@ class SettingsWindow:
         procedures["other_work_templates"] = other_work_templates
         self.config_manager.save_procedures(procedures)
 
-    def _validate_inputs(self) -> dict:
+    def _validate_inputs(self) -> dict[str, str]:
         """入力値の検証。フィールド名 → エラーメッセージの辞書を返す。"""
-        errors: dict = {}
+        errors: dict[str, str] = {}
 
         if not self.last_name_var.get().strip():
             errors["last_name"] = "苗字は必須です"
@@ -391,7 +420,7 @@ class SettingsWindow:
             add="+",
         )
 
-    def _show_validation_errors(self, errors: dict) -> None:
+    def _show_validation_errors(self, errors: dict[str, str]) -> None:
         if not errors:
             self._clear_validation_errors()
             return
@@ -434,14 +463,14 @@ class SettingsWindow:
         except tk.TclError:
             pass
 
-    def _reset_to_default(self):
+    def _reset_to_default(self) -> None:
         """デフォルト設定に戻す"""
         if messagebox.askyesno("確認", "設定をデフォルトに戻しますか？\n現在の設定は失われます。"):
             self.config_manager._create_default_config()
             self._load_current_settings()
             messagebox.showinfo("完了", "設定をデフォルトに戻しました。")
 
-    def _update_parent_settings(self):
+    def _update_parent_settings(self) -> None:
         """親ウィンドウの設定を更新"""
         try:
             if self.main_window and hasattr(self.main_window, "update_settings"):
@@ -451,7 +480,7 @@ class SettingsWindow:
         except Exception:
             pass
 
-    def _on_closing(self):
+    def _on_closing(self) -> None:
         """ウィンドウが閉じられるときの処理"""
         current_last_name = self.config_manager.get_user_setting("last_name") or ""
         current_default_dir = self.config_manager.get_user_setting("default_directory") or ""

@@ -1,17 +1,17 @@
-import logging
-import tkinter as tk
-from tkinter import messagebox, filedialog
-from datetime import datetime
-import os
-import subprocess
-import platform
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
+import logging
+import os
+import platform
+import subprocess
+import tkinter as tk
+from datetime import datetime
+from tkinter import filedialog, messagebox
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import (
     W, E, N, S, LEFT, RIGHT, X, BOTH,
-    SUCCESS, INFO, SECONDARY, DANGER, WARNING, LINK,
+    SUCCESS, INFO, SECONDARY, DANGER, WARNING,
     OUTLINE,
 )
 from ttkbootstrap.tooltip import ToolTip
@@ -19,6 +19,8 @@ from ttkbootstrap.tooltip import ToolTip
 from core.config_manager import ConfigManager
 from core.directory_creator import DirectoryCreator
 from .icons import IconSet, resource_path
+
+logger = logging.getLogger(__name__)
 
 
 FONT_FAMILY = "Yu Gothic UI"
@@ -31,7 +33,7 @@ FONT_LABEL = (FONT_FAMILY, 10)
 class MainWindow:
     """メインウィンドウクラス"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # ConfigManager を先に生成してテーマ設定を反映
         self.config_manager = ConfigManager()
         self.directory_creator = DirectoryCreator(self.config_manager)
@@ -48,7 +50,7 @@ class MainWindow:
         self._configure_styles()
 
         self.icons = IconSet(
-            ["settings", "folder", "add", "copy", "clear", "close"],
+            ["settings", "folder", "add", "copy", "clear"],
             root=self.root,
         )
 
@@ -58,7 +60,7 @@ class MainWindow:
         self._bind_shortcuts()
         self._load_user_settings()
 
-    def _set_window_icon(self):
+    def _set_window_icon(self) -> None:
         """タスクバー/ウィンドウタイトルバーのアイコンを設定。"""
         ico_path = resource_path("DirCraft.ico")
         if ico_path.exists():
@@ -76,7 +78,7 @@ class MainWindow:
             except tk.TclError:
                 pass
 
-    def _bind_shortcuts(self):
+    def _bind_shortcuts(self) -> None:
         """キーボードショートカットを登録。"""
         # Ctrl+Enter: ディレクトリ作成
         self.root.bind_all("<Control-Return>", lambda _e: self._create_directory())
@@ -85,7 +87,7 @@ class MainWindow:
         # Escape: 終了（フォーカス位置によらず）
         self.root.bind_all("<Escape>", lambda _e: self.root.quit())
 
-    def _configure_styles(self):
+    def _configure_styles(self) -> None:
         """ベースフォントとカスタムスタイルを設定"""
         style = ttk.Style()
         style.configure(".", font=FONT_BASE)
@@ -97,7 +99,7 @@ class MainWindow:
         style.configure("Subtitle.TLabel", font=FONT_SUBTITLE, foreground="#6c757d")
         style.configure("FieldLabel.TLabel", font=FONT_LABEL, foreground="#495057")
 
-    def _init_ui(self):
+    def _init_ui(self) -> None:
         """UI要素を初期化"""
         main_frame = ttk.Frame(self.root, padding=24)
         main_frame.grid(row=0, column=0, sticky=(W, E, N, S))
@@ -120,7 +122,7 @@ class MainWindow:
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(1, weight=1)
 
-    def _create_error_banner(self, parent):
+    def _create_error_banner(self, parent: tk.Widget) -> None:
         """バリデーションエラーを表示するインラインバナー（初期は非表示）。"""
         self._error_banner = ttk.Label(
             parent,
@@ -136,7 +138,7 @@ class MainWindow:
         )
         self._error_banner.grid_remove()
 
-    def _create_header(self, parent):
+    def _create_header(self, parent: tk.Widget) -> None:
         """ヘッダー（タイトル + 設定ボタン）を作成"""
         header = ttk.Frame(parent)
         header.grid(row=0, column=0, columnspan=2, sticky=(W, E), pady=(0, 4))
@@ -163,7 +165,7 @@ class MainWindow:
         settings_btn.grid(row=0, column=1, sticky=E, padx=(12, 0))
         ToolTip(settings_btn, text="ユーザー設定を開く (Ctrl+,)", bootstyle=INFO)
 
-    def _create_input_fields(self, parent):
+    def _create_input_fields(self, parent: tk.Widget) -> None:
         """入力フィールドを作成"""
         row_pady = 8
         label_padx = (0, 14)
@@ -316,7 +318,7 @@ class MainWindow:
 
         parent.columnconfigure(1, weight=1)
 
-    def _create_action_buttons(self, parent):
+    def _create_action_buttons(self, parent: tk.Widget) -> None:
         """アクションボタン群を作成"""
         ttk.Separator(parent, orient="horizontal").grid(
             row=10, column=0, columnspan=2, sticky=(W, E), pady=(16, 12)
@@ -372,21 +374,10 @@ class MainWindow:
             command=self._clear_fields,
             bootstyle=(SECONDARY, OUTLINE),
         )
-        clear_btn.pack(side=LEFT, padx=(0, 8))
+        clear_btn.pack(side=LEFT)
         ToolTip(clear_btn, text="入力フィールドをリセット", bootstyle=INFO)
 
-        exit_btn = ttk.Button(
-            secondary_frame,
-            text=" 終了",
-            image=self.icons.get("close"),
-            compound=LEFT,
-            command=self.root.quit,
-            bootstyle=(SECONDARY, LINK),
-        )
-        exit_btn.pack(side=LEFT)
-        ToolTip(exit_btn, text="アプリケーションを終了 (Esc)", bootstyle=INFO)
-
-    def _create_status_bar(self, parent):
+    def _create_status_bar(self, parent: tk.Widget) -> None:
         """フラットなステータスバーを作成"""
         self.status_var = tk.StringVar()
         self.status_bar = ttk.Label(
@@ -410,7 +401,7 @@ class MainWindow:
             add="+",
         )
 
-    def _show_validation_errors(self, errors: dict) -> None:
+    def _show_validation_errors(self, errors: dict[str, str]) -> None:
         """エラー辞書をインラインバナーと入力欄の赤枠で表示する。"""
         if not errors:
             self._clear_validation_errors()
@@ -457,26 +448,26 @@ class MainWindow:
         except tk.TclError:
             pass
 
-    def _load_user_settings(self):
+    def _load_user_settings(self) -> None:
         """ユーザー設定を読み込み"""
         default_dir = self.config_manager.get_user_setting("default_directory")
         if default_dir:
             self.parent_dir_var.set(default_dir)
 
-    def _browse_directory(self):
+    def _browse_directory(self) -> None:
         """ディレクトリ選択ダイアログを表示"""
         directory = filedialog.askdirectory()
         if directory:
             self.parent_dir_var.set(directory)
             self.config_manager.set_user_setting("default_directory", directory)
 
-    def _on_cloud_selected(self, event=None):
+    def _on_cloud_selected(self, event: tk.Event | None = None) -> None:
         """対象クラウドが選択されたときの処理"""
         selected_cloud = self.cloud_var.get()
         if selected_cloud:
             self._update_work_type_options(selected_cloud)
 
-    def _update_work_type_options(self, cloud):
+    def _update_work_type_options(self, cloud: str) -> None:
         """作業内容の選択肢を更新"""
         try:
             procedures = self.config_manager.load_procedures()
@@ -493,7 +484,7 @@ class MainWindow:
         except Exception as e:
             messagebox.showerror("エラー", f"作業内容の取得に失敗しました:\n{str(e)}")
 
-    def _on_work_type_selected(self, event=None):
+    def _on_work_type_selected(self, event: tk.Event | None = None) -> None:
         """作業内容が選択されたときの処理"""
         selected_work_type = self.work_type_var.get()
 
@@ -504,12 +495,12 @@ class MainWindow:
             self.other_work_type_entry.config(state="disabled")
             self.other_work_type_var.set("")
 
-    def _open_settings(self):
+    def _open_settings(self) -> None:
         """設定画面を開く"""
         from .settings_window import SettingsWindow
         SettingsWindow(self.root, self.config_manager, main_window=self)
 
-    def _create_directory(self):
+    def _create_directory(self) -> None:
         """作業用ディレクトリを作成"""
         try:
             change_number = self.change_number_var.get().strip()
@@ -576,7 +567,7 @@ class MainWindow:
             messagebox.showerror("エラー", f"ディレクトリの作成に失敗しました:\n{str(e)}")
             self._update_status("エラーが発生しました", "error")
 
-    def _clear_input_fields_only(self):
+    def _clear_input_fields_only(self) -> None:
         """入力フィールドのみをクリア（パスは保持）"""
         self.change_number_var.set("")
         self.cloud_var.set("")
@@ -588,7 +579,7 @@ class MainWindow:
         self.work_type_options = []
         self.other_work_type_entry.config(state="disabled")
 
-    def _clear_fields(self):
+    def _clear_fields(self) -> None:
         """入力フィールドをクリア"""
         self.change_number_var.set("")
         self.cloud_var.set("")
@@ -604,7 +595,7 @@ class MainWindow:
         self._clear_validation_errors()
         self._update_status("フィールドをクリアしました", "normal")
 
-    def _open_directory_in_explorer(self, directory_path: str):
+    def _open_directory_in_explorer(self, directory_path: str) -> None:
         """作成されたディレクトリをエクスプローラーで開く"""
         try:
             system = platform.system()
@@ -617,7 +608,7 @@ class MainWindow:
         except Exception:
             logger.exception("ディレクトリを開く際にエラーが発生しました: %s", directory_path)
 
-    def _copy_path_to_clipboard(self):
+    def _copy_path_to_clipboard(self) -> None:
         """作成されたディレクトリのパスをクリップボードにコピー"""
         if self.created_directory_path:
             try:
@@ -629,7 +620,7 @@ class MainWindow:
         else:
             self._update_status("コピーするパスがありません", "error")
 
-    def _update_status(self, message: str, status_type: str = "normal"):
+    def _update_status(self, message: str, status_type: str = "normal") -> None:
         """ステータスバーの表示を更新（bootstyle で色分け）"""
         self.status_var.set(message)
 
@@ -640,7 +631,7 @@ class MainWindow:
         else:
             self.status_bar.configure(bootstyle=SECONDARY)
 
-    def update_settings(self):
+    def update_settings(self) -> None:
         """設定が変更された後に呼び出されるメソッド"""
         self._load_user_settings()
         theme = self.config_manager.get_user_setting("theme") or "cosmo"
@@ -653,6 +644,6 @@ class MainWindow:
             logger.exception("テーマ切り替えに失敗: %s", theme)
         self._update_status("設定を更新しました", "success")
 
-    def run(self):
+    def run(self) -> None:
         """アプリケーションを実行"""
         self.root.mainloop()
