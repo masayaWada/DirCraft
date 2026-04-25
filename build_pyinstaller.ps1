@@ -20,7 +20,7 @@ if (Test-Path "DirCraft.spec") { Remove-Item "DirCraft.spec" -Force }
 if (Test-Path "DirCraft_debug.spec") { Remove-Item "DirCraft_debug.spec" -Force }
 
 Write-Host "`n1. 本番版をビルド中..." -ForegroundColor Cyan
-python -m PyInstaller --onefile --windowed --icon=DirCraft.ico --name=DirCraft --add-data "config;config" --add-data "templates;templates" $SCRIPT_NAME
+python -m PyInstaller --onefile --windowed --icon=DirCraft.ico --name=DirCraft --add-data "config;config" --add-data "templates;templates" --add-data "assets;assets" --add-data "DirCraft.ico;." $SCRIPT_NAME
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "本番版のビルドが完了しました: dist\DirCraft.exe" -ForegroundColor Green
@@ -35,7 +35,7 @@ else {
 }
 
 Write-Host "`n2. デバッグ版をビルド中..." -ForegroundColor Cyan
-python -m PyInstaller --onefile --console --icon=DirCraft.ico --name=DirCraft_debug --add-data "config;config" --add-data "templates;templates" $SCRIPT_NAME
+python -m PyInstaller --onefile --console --icon=DirCraft.ico --name=DirCraft_debug --add-data "config;config" --add-data "templates;templates" --add-data "assets;assets" --add-data "DirCraft.ico;." $SCRIPT_NAME
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "デバッグ版のビルドが完了しました: dist\DirCraft_debug.exe" -ForegroundColor Green

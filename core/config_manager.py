@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
@@ -20,7 +23,7 @@ class ConfigManager:
 
         # 設定ファイルの存在を確認
         if not self.config_file.exists() or not self.procedures_file.exists():
-            print("設定ファイルが不足しています。再初期化を実行します。")
+            logger.warning("設定ファイルが不足しています。再初期化を実行します。")
             self._initialize_config_files()
 
     def _initialize_config_files(self):
@@ -37,7 +40,8 @@ class ConfigManager:
             "user_settings": {
                 "last_name": "山田",
                 "default_directory": str(Path.home() / "Documents" / "DirCraft_Projects"),
-                "team_group_name": "グループ名"
+                "team_group_name": "グループ名",
+                "theme": "cosmo"
             }
         }
         self.save_config(default_config)

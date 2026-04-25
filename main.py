@@ -17,38 +17,33 @@ sys.path.insert(0, str(project_root))
 
 def main():
     """メイン関数"""
+    import logging
+    from core.logging_config import configure_logging
+
+    log_path = configure_logging(project_root / "config")
+    logger = logging.getLogger("dircraft")
+    logger.info("DirCraft アプリケーションを起動中... (log: %s)", log_path)
+
     try:
-        # 高速起動のため、最小限のログ出力
-        print("DirCraft アプリケーションを起動中...")
-
-        # 設定ファイルの存在確認（自動生成される）
-        config_dir = project_root / "config"
-        if not config_dir.exists():
-            print("設定ファイルを初期化中...")
-
-        # 必要なモジュールのインポート
         from gui.main_window import MainWindow
 
-        # メインウィンドウを作成して実行
         app = MainWindow()
         app.run()
 
     except ImportError as e:
-        print(f"エラー: 必要なモジュールのインポートに失敗しました: {e}")
-        print("詳細なエラー情報:")
-        traceback.print_exc()
-        print("\n以下の点を確認してください:")
-        print("1. 必要なPythonパッケージがインストールされているか")
-        print("2. プロジェクトの構造が正しいか")
-        print("3. 設定ファイルが正しく配置されているか")
-        input("\nEnterキーを押して終了してください...")
+        logger.exception("必要なモジュールのインポートに失敗しました: %s", e)
+        sys.stderr.write(
+            "\n起動に失敗しました。以下を確認してください:\n"
+            "  1. 必要な Python パッケージがインストールされているか\n"
+            "  2. プロジェクト構造が正しいか\n"
+            "  3. 設定ファイルが正しく配置されているか\n"
+            f"  ログ: {log_path}\n"
+        )
         sys.exit(1)
 
     except Exception as e:
-        print(f"エラー: アプリケーションの実行中にエラーが発生しました: {e}")
-        print("詳細なエラー情報:")
-        traceback.print_exc()
-        input("\nEnterキーを押して終了してください...")
+        logger.exception("アプリケーションの実行中にエラーが発生しました: %s", e)
+        sys.stderr.write(f"\n想定外のエラーが発生しました。詳細は {log_path} を参照してください。\n")
         sys.exit(1)
 
 
