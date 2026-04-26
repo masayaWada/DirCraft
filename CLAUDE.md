@@ -23,6 +23,12 @@ pip install -r requirements.txt
 
 # exe ビルド (Windows PowerShell)
 ./build_pyinstaller.ps1
+
+# リリース手順
+# 1. version.txt の4箇所を更新（filevers, prodvers, FileVersion, ProductVersion）
+# 2. README.md の更新履歴に追記
+# 3. CHANGELOG.md に追記
+# 4. git commit, tag, push, gh release create
 ```
 
 ## アーキテクチャ
@@ -66,3 +72,4 @@ pip install -r requirements.txt
 - ディレクトリ名に日本語（全角文字）を含む。Windows のパス長制限（260文字）に注意
 - 作業内容で「その他」を選択すると自由入力フィールドが有効化され、`other_work_templates` から別系統のテンプレートが使われる
 - `DateEntry` は ttkbootstrap 固有ウィジェット（tkinter 標準にはない）。`entry.get()` でフォーマット済み文字列を取得する
+- `version.txt` は PyInstaller 用の Windows バージョン情報ファイル。バージョン更新時は `filevers`, `prodvers`, `FileVersion`, `ProductVersion` の4箇所を同時に変更する
